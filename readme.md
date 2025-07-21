@@ -17,7 +17,6 @@ print(req.text)
 ```
 Flag: oskolctf{xorg_worship_zhdet_tebya}
 
-
 ## task4
 ```python
 import requests

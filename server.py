@@ -46,4 +46,4 @@ async def task4():
     return "<h1>Я сам решал это 3 дня...</h1>"
 
 if __name__ == '__main__':
-    app.run('localhost', 8337)
+    app.run('0.0.0.0', 8337)
