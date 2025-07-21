@@ -10,7 +10,7 @@ async def home():
 
 @app.route('/flag')
 async def flag():
-    return "<h1>Ты нашёл секретный флаг! ockolctf{ockolctf}</h1>"
+    return "<h1>Ты нашёл секретный флаг! oskolctf{oskolctf}</h1>"
 
 @app.route('/task0')
 async def task0():
@@ -41,9 +41,9 @@ async def task3():
 async def task4():
     if flask.request.cookies.get("xorg_worship_flag_for_you") == "true":
         return flags[4].strip()
-    response = flask.make_response(flask.render_template('task2.html'))
+    response = flask.make_response("<h1>Я сам решал это 3 дня...</h1>")
     response.set_cookie("xorg_worship_flag_for_you", "false", max_age=60*60*24)
-    return "<h1>Я сам решал это 3 дня...</h1>"
+    return response
 
 if __name__ == '__main__':
     app.run('0.0.0.0', 8005)
