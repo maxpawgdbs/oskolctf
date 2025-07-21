@@ -40,7 +40,7 @@ async def task3():
 @app.route('/task4')
 async def task4():
     if flask.request.cookies.get("xorg_worship_flag_for_you") == "true":
-        return flag[4].strip()
+        return flags[4].strip()
     response = flask.make_response(flask.render_template('task2.html'))
     response.set_cookie("xorg_worship_flag_for_you", "false", max_age=60*60*24)
     return "<h1>Я сам решал это 3 дня...</h1>"
