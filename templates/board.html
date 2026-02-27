@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+  <div class="card">
+    <h2>Сдать флаг</h2>
+    <form method="post" action="/submit">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <p><input name="flag" placeholder="oskolctf{...}"></p>
+      <button type="submit">Submit</button>
+    </form>
+
+    <h3 style="margin-top:14px;">Задания</h3>
+    <ul style="padding-left: 18px;">
+      {% for t in tasks %}
+        <li style="margin: 8px 0;">
+          <a href="{{ t.link }}">Task{{ t.id }}</a>
+          <span class="badge">{{ t.points }} pts</span>
+          {% if t.solved %}
+            <span class="badge ok">solved</span>
+          {% else %}
+            <span class="badge">unsolved</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Leaderboard</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>team</th>
+          <th>score</th>
+          <th>solves</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in leaderboard %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ r.username }}</td>
+            <td>{{ r.score }}</td>
+            <td>{{ r.solved_count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
