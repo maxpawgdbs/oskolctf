@@ -319,4 +319,4 @@ def submit():
 init_db()
 
 if __name__ == "__main__":
-    app.run("0.0.0.0", 8005, debug=True)
+    app.run("0.0.0.0", 8005, debug=False)
