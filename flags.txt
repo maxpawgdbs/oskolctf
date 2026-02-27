@@ -3,3 +3,4 @@ oskolctf{hahaha_really_my_first_ctf}
 oskolctf{ti_uzhe_umniy_esli_reshil_eto}
 oskolctf{xorg_worship_zhdet_tebya}
 oskolctf{moya_lubimaya_taska_posle_labirinta}
+oskolctf{oskolctf}

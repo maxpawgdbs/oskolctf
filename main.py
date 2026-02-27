@@ -20,6 +20,7 @@ TASK_POINTS = {
     2: 150,
     3: 200,
     4: 250,
+    5: 100,
 }
 
 DB_PATH = os.path.join(os.getcwd(), "ctf.sqlite3")
