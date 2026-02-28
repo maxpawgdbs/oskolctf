@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Flask / runtime
+instance/
+*.sqlite3
+*.db
+
+# Secrets
+.env
+.env.*
+secret_key
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+run.bat
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads / media
+# (фото и флаги заливаются в репо)
+
+# Явно включаем в репо
+!flags.txt
+!css/bg.jpg

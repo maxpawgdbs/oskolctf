@@ -7,7 +7,12 @@ import flask
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
-app = flask.Flask(__name__, template_folder=os.path.join(os.getcwd(), "templates"))
+app = flask.Flask(
+    __name__,
+    template_folder=os.path.join(os.getcwd(), "templates"),
+    static_folder=os.path.join(os.getcwd(), "css"),
+    static_url_path="/css",
+)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")  # поменяй в проде
 
 FLAGS_PATH = os.path.join(os.getcwd(), "flags.txt")
@@ -105,7 +110,7 @@ def require_csrf():
 # ---------- Existing routes (НЕ МЕНЯЕМ пути) ----------
 @app.route("/")
 async def home():
-    return '<h1>Welcome to OSKOLCTF</h1><p><a href="/board">Board</a></p>'
+    return flask.send_from_directory(os.path.join(os.getcwd(), "templates"), "spa.html")
 
 
 @app.route("/flag")
@@ -316,7 +321,158 @@ def submit():
     return flask.redirect(flask.url_for("board"))
 
 
-# ---------- startup ----------
+# ========== JSON API для Vue SPA ==========
+
+@app.route("/api/me")
+def api_me():
+    u = current_user()
+    if u:
+        return flask.jsonify({"user": {"id": u["id"], "username": u["username"]}})
+    return flask.jsonify({"user": None})
+
+
+@app.route("/api/csrf")
+def api_csrf():
+    return flask.jsonify({"csrf": get_csrf()})
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def api_login():
+    data = flask.request.get_json(force=True) or {}
+    sent = data.get("csrf", "")
+    real = flask.session.get("csrf", "")
+    if not real or not sent or not hmac.compare_digest(sent, real):
+        return flask.jsonify({"ok": False, "error": "CSRF check failed"}), 400
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    conn = db()
+    u = conn.execute(
+        "SELECT id, username, pass_hash FROM users WHERE username = ?", (username,)
+    ).fetchone()
+    conn.close()
+    if not u or not check_password_hash(u["pass_hash"], password):
+        return flask.jsonify({"ok": False, "error": "Неверный логин или пароль"})
+    flask.session["uid"] = u["id"]
+    return flask.jsonify({"ok": True, "user": {"id": u["id"], "username": u["username"]}})
+
+
+@app.route("/api/auth/register", methods=["POST"])
+def api_register():
+    data = flask.request.get_json(force=True) or {}
+    sent = data.get("csrf", "")
+    real = flask.session.get("csrf", "")
+    if not real or not sent or not hmac.compare_digest(sent, real):
+        return flask.jsonify({"ok": False, "error": "CSRF check failed"}), 400
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    if len(username) < 3 or len(password) < 6:
+        return flask.jsonify({"ok": False, "error": "Username ≥ 3 символа, пароль ≥ 6 символов"})
+    conn = db()
+    try:
+        conn.execute(
+            "INSERT INTO users(username, pass_hash) VALUES(?, ?)",
+            (username, generate_password_hash(password))
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return flask.jsonify({"ok": False, "error": "Имя уже занято"})
+    u = conn.execute("SELECT id, username FROM users WHERE username = ?", (username,)).fetchone()
+    conn.close()
+    flask.session["uid"] = u["id"]
+    return flask.jsonify({"ok": True, "user": {"id": u["id"], "username": u["username"]}})
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def api_logout():
+    flask.session.pop("uid", None)
+    return flask.jsonify({"ok": True})
+
+
+@app.route("/api/board")
+def api_board():
+    user = current_user()
+    if not user:
+        return flask.jsonify({"ok": False, "error": "Not authenticated"}), 401
+    conn = db()
+    my_solves = conn.execute(
+        "SELECT task_id, solved_at FROM solves WHERE user_id = ?", (user["id"],)
+    ).fetchall()
+    my_solved = {r["task_id"]: r["solved_at"] for r in my_solves}
+    rows = conn.execute("""
+        SELECT u.username,
+               COALESCE(SUM(CASE s.task_id
+                   WHEN 0 THEN ? WHEN 1 THEN ? WHEN 2 THEN ?
+                   WHEN 3 THEN ? WHEN 4 THEN ? ELSE 0
+               END), 0) AS score,
+               COUNT(s.id) AS solved_count
+        FROM users u
+        LEFT JOIN solves s ON s.user_id = u.id
+        GROUP BY u.id
+        ORDER BY score DESC, solved_count DESC, u.username ASC
+        LIMIT 50
+    """, tuple(TASK_POINTS.get(i, 0) for i in range(5))).fetchall()
+    conn.close()
+    tasks = [
+        {
+            "id": i,
+            "points": TASK_POINTS.get(i, 0),
+            "solved": i in my_solved,
+            "solved_at": my_solved.get(i),
+            "link": f"/task{i}",
+        }
+        for i in range(len(flags))
+    ]
+    leaderboard = [
+        {"username": r["username"], "score": r["score"], "solved_count": r["solved_count"]}
+        for r in rows
+    ]
+    return flask.jsonify({
+        "ok": True,
+        "user": {"id": user["id"], "username": user["username"]},
+        "tasks": tasks,
+        "leaderboard": leaderboard,
+    })
+
+
+@app.route("/api/submit", methods=["POST"])
+def api_submit():
+    user = current_user()
+    if not user:
+        return flask.jsonify({"ok": False, "error": "Not authenticated"}), 401
+    data = flask.request.get_json(force=True) or {}
+    sent = data.get("csrf", "")
+    real = flask.session.get("csrf", "")
+    if not real or not sent or not hmac.compare_digest(sent, real):
+        return flask.jsonify({"ok": False, "error": "CSRF check failed"}), 400
+    raw_flag = (data.get("flag") or "").strip()
+    if not raw_flag:
+        return flask.jsonify({"ok": False, "error": "Пустой флаг", "category": "error"})
+    submitted_hash = flag_hash(raw_flag)
+    task_id = None
+    for tid, fh in FLAG_HASHES.items():
+        if hmac.compare_digest(fh, submitted_hash):
+            task_id = tid
+            break
+    if task_id is None:
+        return flask.jsonify({"ok": False, "error": "Неверный флаг", "category": "error"})
+    conn = db()
+    try:
+        conn.execute("INSERT INTO solves(user_id, task_id) VALUES(?, ?)", (user["id"], task_id))
+        conn.commit()
+        conn.close()
+        return flask.jsonify({
+            "ok": True,
+            "message": f"Засчитано! Task{task_id} (+{TASK_POINTS.get(task_id, 0)} pts)",
+            "task_id": task_id,
+            "points": TASK_POINTS.get(task_id, 0),
+        })
+    except sqlite3.IntegrityError:
+        conn.close()
+        return flask.jsonify({"ok": False, "error": f"Task{task_id} уже решён", "category": "info"})
+
+
+# ========== startup ==========
 init_db()
 
 if __name__ == "__main__":
