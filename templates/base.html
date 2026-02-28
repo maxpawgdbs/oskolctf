@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="ru">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OSKOLCTF</title>
   <link rel="stylesheet" href="/css/ui.css">
 </head>
+
 <body class="dark">
   <div class="topbar">
     <div class="container">
@@ -16,11 +18,11 @@
         </div>
         <div class="pills">
           {% if user %}
-            <span class="userchip">👤 {{ user.username }}</span>
-            <a href="/logout" class="pill">Выйти</a>
+          <span class="userchip">👤 {{ user.username }}</span>
+          <a href="/logout" class="pill">Выйти</a>
           {% else %}
-            <a href="/login" class="pill">Войти</a>
-            <a href="/register" class="pill active">Регистрация</a>
+          <a href="/login" class="pill">Войти</a>
+          <a href="/register" class="pill active">Регистрация</a>
           {% endif %}
         </div>
       </div>
@@ -29,16 +31,17 @@
 
   <div class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for cat, msg in messages %}
-          <div class="flash flash-{{ 'ok' if cat=='ok' else 'err' if cat=='error' else 'info' }}">
-            {{ msg }}
-          </div>
-        {% endfor %}
-      {% endif %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="flash flash-{{ 'ok' if cat=='ok' else 'err' if cat=='error' else 'info' }}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     {% block content %}{% endblock %}
   </div>
 </body>
+
 </html>
