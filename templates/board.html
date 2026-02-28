@@ -1,52 +1,96 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="grid">
-  <div class="card">
-    <h2>Сдать флаг</h2>
-    <form method="post" action="/submit">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <p><input name="flag" placeholder="oskolctf{...}"></p>
-      <button type="submit">Submit</button>
-    </form>
+<div class="page">
+  <div class="grid">
 
-    <h3 style="margin-top:14px;">Задания</h3>
-    <ul style="padding-left: 18px;">
-      {% for t in tasks %}
-        <li style="margin: 8px 0;">
-          <a href="{{ t.link }}">Task{{ t.id }}</a>
-          <span class="badge">{{ t.points }} pts</span>
-          {% if t.solved %}
-            <span class="badge ok">solved</span>
-          {% else %}
-            <span class="badge">unsolved</span>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
+    <div class="col">
+      <!-- Submit -->
+      <div class="card">
+        <div class="winbar-strip">
+          <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span
+              class="wdot wdot-green"></span></div>
+        </div>
+        <div class="card-h">
+          <div>
+            <p class="title">Сдать флаг</p>
+            <p class="subtitle">Введи флаг в формате <span class="kbd">oskolctf{...}</span></p>
+          </div>
+        </div>
+        <div class="card-b">
+          <form method="post" action="/submit">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <div class="field" style="margin-bottom:12px;">
+              <label class="label">Флаг</label>
+              <input class="input" name="flag" placeholder="oskolctf{...}">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Отправить</button>
+          </form>
+        </div>
+      </div>
 
-  <div class="card">
-    <h2>Leaderboard</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>team</th>
-          <th>score</th>
-          <th>solves</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in leaderboard %}
-          <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ r.username }}</td>
-            <td>{{ r.score }}</td>
-            <td>{{ r.solved_count }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      <!-- Tasks -->
+      <div class="card">
+        <div class="winbar-strip">
+          <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span
+              class="wdot wdot-green"></span></div>
+        </div>
+        <div class="card-h">
+          <p class="title">Задания</p>
+        </div>
+        <div class="card-b col">
+          {% for t in tasks %}
+          <div class="task">
+            <div class="task-left">
+              <span class="task-name"><a href="{{ t.link }}">Task{{ t.id }}</a></span>
+              <div class="task-meta">
+                <span class="badge badge-pts">{{ t.points }} pts</span>
+                {% if t.solved %}
+                <span class="badge badge-ok">✓ решено</span>
+                {% else %}
+                <span class="badge">не решено</span>
+                {% endif %}
+              </div>
+            </div>
+            <a href="{{ t.link }}" class="btn btn-secondary" style="padding:8px 14px;font-size:13px;">Открыть →</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card">
+      <div class="winbar-strip">
+        <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span
+            class="wdot wdot-green"></span></div>
+      </div>
+      <div class="card-h">
+        <p class="title">Leaderboard</p>
+      </div>
+      <div class="card-b">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Команда</th>
+              <th>Очки</th>
+              <th>Решено</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in leaderboard %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ r.username }}</td>
+              <td><span class="badge badge-pts">{{ r.score }}</span></td>
+              <td>{{ r.solved_count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}

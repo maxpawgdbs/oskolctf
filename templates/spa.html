@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<!-- vibecode front by nekoty -->
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OSKOLCTF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="/css/ui.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.prod.js"></script>
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0b0f17; }
+
+    /* ── Page transitions ── */
+    .fade-slide-enter-active { transition: opacity .28s ease, transform .28s ease; }
+    .fade-slide-leave-active  { transition: opacity .18s ease, transform .18s ease; }
+    .fade-slide-enter-from    { opacity: 0; transform: translateY(14px); }
+    .fade-slide-leave-to      { opacity: 0; transform: translateY(-10px); }
+
+    /* ── Toast ── */
+    .toast-enter-active { transition: all .38s cubic-bezier(.34,1.56,.64,1); }
+    .toast-leave-active { transition: all .22s ease; }
+    .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(110%); }
+
+    .toast-item {
+      padding: 12px 18px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      pointer-events: all;
+      cursor: default;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 8px 32px rgba(0,0,0,.45);
+      border: 1px solid transparent;
+      min-width: 240px;
+    }
+    .toast-ok   { background: rgba(34,197,94,.14);  border-color: rgba(34,197,94,.35);  color: #4ade80; }
+    .toast-err  { background: rgba(239,68,68,.14);  border-color: rgba(239,68,68,.35);  color: #f87171; }
+    .toast-info { background: rgba(99,102,241,.14); border-color: rgba(99,102,241,.35); color: #a5b4fc; }
+
+    /* ── Keyframes ── */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-9px); }
+      40%     { transform: translateX(8px); }
+      60%     { transform: translateX(-6px); }
+      80%     { transform: translateX(5px); }
+    }
+    @keyframes pop {
+      0%,100% { transform: scale(1); }
+      50%      { transform: scale(1.03); }
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0; }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+    }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0) translateX(0); opacity: .6; }
+      33%      { transform: translateY(-40px) translateX(12px); opacity: .3; }
+      66%      { transform: translateY(-20px) translateX(-8px); opacity: .5; }
+    }
+    @keyframes gradShift {
+      0%,100% { background-position: 0% 50%; }
+      50%      { background-position: 100% 50%; }
+    }
+    @keyframes glowPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+      50%      { box-shadow: 0 0 18px 4px rgba(34,197,94,.18); }
+    }
+    @keyframes termTyping {
+      from { opacity: 0; transform: translateX(-4px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .shake  { animation: shake  .45s ease; }
+    .pop    { animation: pop    .35s ease; }
+    .spin   { animation: spin   .8s linear infinite; display: inline-block; }
+
+    /* ── Gradient text ── */
+    .grad-text {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradShift 4s ease infinite;
+    }
+
+    /* ── HOME ── */
+    .home-page {
+      min-height: 100vh;
+      background:
+        radial-gradient(1100px 600px at 5% 20%,  rgba(99,102,241,.18), transparent 60%),
+        radial-gradient(800px  500px at 85% 15%,  rgba(34,197,94,.12),  transparent 55%),
+        radial-gradient(600px  400px at 50% 80%,  rgba(6,182,212,.10),   transparent 50%),
+        #0b0f17;
+      color: var(--textOnDark);
+      overflow: hidden;
+      position: relative;
+    }
+    .particles {
+      position: absolute; inset: 0;
+      pointer-events: none; overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      width: var(--size, 3px); height: var(--size, 3px);
+      border-radius: 50%;
+      background: var(--color, rgba(99,102,241,.55));
+      left: var(--x, 50%);
+      bottom: -10px;
+      animation: float var(--dur, 8s) var(--delay, 0s) ease-in-out infinite;
+    }
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 48px;
+      align-items: center;
+      padding: 72px 0 56px;
+    }
+    .hero-title {
+      font-size: 54px;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+    .hero-lead {
+      color: var(--mutedOnDark);
+      font-size: 16px;
+      line-height: 1.6;
+      font-weight: 500;
+      margin: 0 0 28px;
+      max-width: 480px;
+    }
+    .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+
+    /* Terminal */
+    .term-line { animation: termTyping .2s ease both; }
+    .term-prompt { color: #4ade80; font-weight: 700; margin-right: 8px; }
+    .term-cmd    { color: rgba(229,231,235,.9); }
+    .term-out    { color: rgba(229,231,235,.6); font-style: italic; }
+    .term-flag   { color: #a5b4fc; font-weight: 700; }
+    .term-cursor { animation: blink 1s step-end infinite; color: #6366f1; }
+
+    /* Auth split */
+    html:has(.auth), body:has(.auth) {
+      height: 100%; margin: 0; background: #0b0f17;
+    }
+    .auth {
+      height: 100vh; display: flex;
+      color: var(--textOnDark); overflow: hidden;
+    }
+    .auth::before, .auth::after { display: none; }
+    .auth-panel {
+      flex-shrink: 0; width: 520px;
+      height: 100%; overflow-y: auto;
+      padding: 44px 48px;
+      display: flex; flex-direction: column; gap: 20px;
+      background: #0b0f17;
+    }
+    .auth-photo { flex: 1 1 0; height: 100vh; overflow: hidden; }
+    .auth-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    /* Board */
+    .board-root {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--textOnDark);
+    }
+    .board-nav {
+      position: sticky; top: 0; z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      background: rgba(11,15,23,.85);
+      backdrop-filter: blur(20px);
+      padding: 14px 0;
+    }
+    .dark-card {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: var(--r-lg);
+      box-shadow: 0 12px 45px rgba(0,0,0,.4);
+    }
+    .dark-card-h {
+      padding: 12px 20px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .dark-card-b { padding: 18px 20px; }
+    .dark-input {
+      width: 100%; padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      outline: none; font-weight: 500;
+      background: rgba(255,255,255,.06);
+      color: var(--textOnDark);
+      font-family: inherit;
+      transition: .15s ease;
+    }
+    .dark-input::placeholder { color: rgba(229,231,235,.35); }
+    .dark-input:focus {
+      border-color: rgba(99,102,241,.55);
+      box-shadow: 0 0 0 4px rgba(99,102,241,.12);
+    }
+    .task-row {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      transition: .18s ease;
+      animation: fadeSlideIn .4s ease both;
+    }
+    .task-row:hover {
+      border-color: rgba(99,102,241,.3);
+      background: rgba(99,102,241,.07);
+      transform: translateY(-1px);
+    }
+    .task-row.solved {
+      border-color: rgba(34,197,94,.2);
+      background: rgba(34,197,94,.05);
+      animation: fadeSlideIn .4s ease both, glowPulse 3s ease infinite;
+    }
+    .task-row.solved:hover {
+      border-color: rgba(34,197,94,.35);
+      background: rgba(34,197,94,.1);
+    }
+    .lb-row td { transition: background .3s ease; }
+    .lb-row:hover td { background: rgba(255,255,255,.07) !important; }
+    .lb-me td { background: rgba(99,102,241,.08) !important; }
+    .rank-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 8px;
+      font-size: 12px; font-weight: 800;
+      background: rgba(255,255,255,.06); color: var(--mutedOnDark);
+    }
+    .rank-1 { background: rgba(251,191,36,.18); color: #fbbf24; }
+    .rank-2 { background: rgba(148,163,184,.15); color: #94a3b8; }
+    .rank-3 { background: rgba(180,83,9,.18);    color: #f97316; }
+
+    .progress-bar-wrap {
+      height: 4px; border-radius: 99px;
+      background: rgba(255,255,255,.06); overflow: hidden;
+      margin-top: 6px;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, #6366f1, #22c55e);
+      transition: width .6s cubic-bezier(.34,1.56,.64,1);
+    }
+
+    .refresh-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      animation: blink 2s ease infinite;
+    }
+
+    @media (max-width: 900px) {
+      .home-grid   { grid-template-columns: 1fr; }
+      .hero-right  { display: none; }
+      .hero-title  { font-size: 38px; }
+      .board-grid  { grid-template-columns: 1fr; }
+      .auth-photo  { display: none; }
+      .auth-panel  { width: 100%; }
+    }
+  </style>
+</head>
+<body class="dark">
+<div id="app"></div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
+const { createRouter, createWebHashHistory, useRouter, useRoute, RouterLink } = VueRouter;
+
+/* ─────────────────── STORE ─────────────────── */
+const store = reactive({
+  user: null,
+  csrf: null,
+  toasts: [],
+
+  async init() {
+    const [me, cs] = await Promise.all([
+      fetch('/api/me').then(r => r.json()).catch(() => ({ user: null })),
+      fetch('/api/csrf').then(r => r.json()).catch(() => ({ csrf: '' })),
+    ]);
+    this.user = me.user;
+    this.csrf = cs.csrf;
+  },
+
+  toast(message, type = 'info') {
+    const id = Date.now() + Math.random();
+    this.toasts.push({ id, message, type });
+    setTimeout(() => {
+      const i = this.toasts.findIndex(t => t.id === id);
+      if (i !== -1) this.toasts.splice(i, 1);
+    }, 4500);
+  },
+
+  async refreshCsrf() {
+    const r = await fetch('/api/csrf').then(r => r.json()).catch(() => ({ csrf: '' }));
+    this.csrf = r.csrf;
+  },
+
+  async logout() {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csrf: this.csrf }),
+    });
+    this.user = null;
+    await this.refreshCsrf();
+  },
+});
+
+/* ─────────────────── CONFETTI ─────────────────── */
+function launchConfetti(originEl) {
+  const colors = ['#6366f1','#22c55e','#f59e0b','#a78bfa','#06b6d4','#f472b6'];
+  const rect = originEl
+    ? originEl.getBoundingClientRect()
+    : { x: window.innerWidth / 2, y: window.innerHeight / 3, width: 0, height: 0 };
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+
+  for (let i = 0; i < 70; i++) {
+    const el = document.createElement('div');
+    const color = colors[i % colors.length];
+    const size = Math.random() * 9 + 5;
+    const angle = (i / 70) * 360 + Math.random() * 20;
+    const dist = Math.random() * 280 + 80;
+    const dur = Math.random() * 1000 + 700;
+    el.style.cssText = `
+      position:fixed;left:${cx}px;top:${cy}px;
+      width:${size}px;height:${size}px;
+      border-radius:${Math.random() > .4 ? '50%' : '3px'};
+      background:${color};pointer-events:none;z-index:9999;
+      transition:transform ${dur}ms cubic-bezier(.17,.67,.3,.99),opacity ${dur}ms ease;
+    `;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => {
+      const rad = (angle * Math.PI) / 180;
+      el.style.transform = `translate(${Math.cos(rad)*dist}px,${Math.sin(rad)*dist}px) rotate(${Math.random()*360}deg)`;
+      el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), dur + 100);
+  }
+}
+
+/* ─────────────────── COMPONENT: MacBar ─────────────────── */
+const MacBar = {
+  props: ['title'],
+  template: `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="winbar">
+        <span class="wdot wdot-red"></span>
+        <span class="wdot wdot-yellow"></span>
+        <span class="wdot wdot-green"></span>
+      </div>
+      <span v-if="title" style="font-size:11px;font-weight:700;opacity:.38;letter-spacing:.1em;">{{ title }}</span>
+    </div>
+  `,
+};
+
+/* ─────────────────── COMPONENT: AppToasts ─────────────────── */
+const AppToasts = {
+  setup() { return { store }; },
+  template: `
+    <div style="position:fixed;top:20px;right:20px;z-index:9900;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:340px;width:calc(100vw - 40px);">
+      <TransitionGroup name="toast">
+        <div v-for="t in store.toasts" :key="t.id" class="toast-item" :class="'toast-'+t.type">
+          {{ t.message }}
+        </div>
+      </TransitionGroup>
+    </div>
+  `,
+};
+
+/* ─────────────────── PAGE: Home ─────────────────── */
+const particles = Array.from({ length: 20 }, (_, i) => ({
+  style: {
+    '--x':     `${(i * 23 + 7) % 100}%`,
+    '--size':  `${(i % 4) + 2}px`,
+    '--dur':   `${(i * 1.3 % 8) + 6}s`,
+    '--delay': `${(i * 0.6 % 5).toFixed(1)}s`,
+    '--color': ['rgba(99,102,241,.5)','rgba(34,197,94,.4)','rgba(6,182,212,.4)','rgba(167,139,250,.4)'][i % 4],
+  },
+}));
+
+const termLines = [
+  { prompt: '~ $', text: 'whoami',                              out: false },
+  { prompt: '',    text: 'root',                                out: true  },
+  { prompt: '~ $', text: 'ls /challenges/',                    out: false },
+  { prompt: '',    text: 'task0  task1  task2  task3  task4',   out: true  },
+  { prompt: '~ $', text: 'nc ctf.local 1337',                  out: false },
+  { prompt: '',    text: 'oskolctf{r3ady_t0_h4ck?}',           flag: true },
+];
+
+const HomePage = {
+  components: { MacBar },
+  setup() {
+    const router = useRouter();
+    const visibleLines = ref([]);
+    onMounted(() => {
+      termLines.forEach((line, i) => {
+        setTimeout(() => visibleLines.value.push(line), i * 900);
+      });
+    });
+    return { store, router, visibleLines, particles };
+  },
+  template: `
+    <div class="home-page">
+      <div class="particles" aria-hidden="true">
+        <span v-for="(p, i) in particles" :key="i" class="particle" :style="p.style"></span>
+      </div>
+      <div class="container">
+        <div class="home-grid">
+
+          <!-- Hero -->
+          <div class="hero-left">
+            <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.1);color:#a5b4fc;font-size:12px;font-weight:700;margin-bottom:22px;">
+              <span style="width:6px;height:6px;border-radius:50%;background:#6366f1;box-shadow:0 0 8px #6366f1;animation:blink 2s ease infinite;"></span>
+              Capture The Flag · OSKOLCTF
+            </div>
+            <h1 class="hero-title" style="color:var(--textOnDark);">
+              Взломай.<br>Захвати.<br><span class="grad-text">Победи.</span>
+            </h1>
+            <p class="hero-lead">Платформа для тренировки offensive security. Задания на web, crypto, reverse engineering и forensics.</p>
+            <div class="hero-btns">
+              <template v-if="!store.user">
+                <button @click="router.push('/register')" class="btn btn-primary" style="font-size:15px;padding:13px 26px;">
+                  Начать бесплатно →
+                </button>
+                <button @click="router.push('/login')" class="btn btn-ghost">
+                  Войти
+                </button>
+              </template>
+              <template v-else>
+                <button @click="router.push('/board')" class="btn btn-primary" style="font-size:15px;padding:13px 26px;">
+                  Открыть борд →
+                </button>
+              </template>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:44px;">
+              <div class="feature">
+                <b>🔐 Web</b>
+                <span>SQL injection, XSS, LFI, SSRF</span>
+              </div>
+              <div class="feature">
+                <b>🔑 Crypto</b>
+                <span>RSA, AES, кастомные шифры</span>
+              </div>
+              <div class="feature">
+                <b>🖥 Misc</b>
+                <span>Forensics, OSINT, stego</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Terminal -->
+          <div class="hero-right">
+            <div class="terminal">
+              <div class="term-top">
+                <div class="winbar">
+                  <span class="wdot wdot-red"></span>
+                  <span class="wdot wdot-yellow"></span>
+                  <span class="wdot wdot-green"></span>
+                </div>
+                <span style="font-size:12px;opacity:.35;margin-left:auto;font-family:monospace;">bash — 80×24</span>
+              </div>
+              <div class="term-body" style="min-height:180px;">
+                <div v-for="(l, i) in visibleLines" :key="i" class="term-line" :style="{animationDelay: '0s'}">
+                  <span v-if="l.prompt" class="term-prompt">{{ l.prompt }}</span>
+                  <span :class="l.flag ? 'term-flag' : l.out ? 'term-out' : 'term-cmd'">{{ l.text }}</span>
+                </div>
+                <span class="term-cursor">█</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `,
+};
+
+/* ─────────────────── PAGE: Login ─────────────────── */
+const LoginPage = {
+  components: { MacBar },
+  setup() {
+    const router = useRouter();
+    const username = ref('');
+    const password = ref('');
+    const loading  = ref(false);
+    const shaking  = ref(false);
+
+    async function submit() {
+      if (loading.value) return;
+      loading.value = true;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
+      }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+      loading.value = false;
+
+      if (res.ok) {
+        store.user = res.user;
+        await store.refreshCsrf();
+        store.toast('Добро пожаловать, ' + res.user.username + '!', 'ok');
+        router.push('/board');
+      } else {
+        shaking.value = true;
+        store.toast(res.error || 'Ошибка', 'err');
+        setTimeout(() => { shaking.value = false; }, 500);
+        password.value = '';
+      }
+    }
+    return { store, router, username, password, loading, shaking, submit };
+  },
+  template: `
+    <div class="auth">
+      <div class="auth-panel">
+        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--textOnDark);">OSKOLCTF</div>
+
+        <div class="auth-card">
+          <mac-bar title="LOGIN" />
+          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:-.03em;">Вход</h1>
+          <p style="margin:6px 0 0;color:var(--mutedOnDark);font-weight:500;">
+            Нет аккаунта?
+            <a @click.prevent="router.push('/register')" href="#" style="color:var(--primary);cursor:pointer;">Зарегистрироваться</a>
+          </p>
+
+          <form @submit.prevent="submit" :class="{'shake': shaking}" class="col" style="margin-top:22px;">
+            <div class="field">
+              <label class="label" style="color:rgba(229,231,235,.7);">Имя пользователя</label>
+              <input class="input" v-model="username" placeholder="username" autocomplete="username"
+                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+            </div>
+            <div class="field">
+              <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
+              <input class="input" v-model="password" type="password" placeholder="••••••••" autocomplete="current-password"
+                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" :disabled="loading" style="margin-top:6px;">
+              <span v-if="loading" class="spin">⟳</span>
+              <span v-else>Войти</span>
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="auth-photo"><img src="/css/bg.jpg" alt=""></div>
+    </div>
+  `,
+};
+
+/* ─────────────────── PAGE: Register ─────────────────── */
+const RegisterPage = {
+  components: { MacBar },
+  setup() {
+    const router = useRouter();
+    const username = ref('');
+    const password = ref('');
+    const loading  = ref(false);
+    const shaking  = ref(false);
+
+    async function submit() {
+      if (loading.value) return;
+      loading.value = true;
+      const res = await fetch('/api/auth/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
+      }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+      loading.value = false;
+
+      if (res.ok) {
+        store.user = res.user;
+        await store.refreshCsrf();
+        store.toast('Аккаунт создан! Добро пожаловать!', 'ok');
+        router.push('/board');
+      } else {
+        shaking.value = true;
+        store.toast(res.error || 'Ошибка', 'err');
+        setTimeout(() => { shaking.value = false; }, 500);
+      }
+    }
+    return { store, router, username, password, loading, shaking, submit };
+  },
+  template: `
+    <div class="auth">
+      <div class="auth-panel">
+        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--textOnDark);">OSKOLCTF</div>
+
+        <div class="auth-card">
+          <mac-bar title="REGISTER" />
+          <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:-.03em;">Регистрация</h1>
+          <p style="margin:6px 0 0;color:var(--mutedOnDark);font-weight:500;">
+            Уже есть аккаунт?
+            <a @click.prevent="router.push('/login')" href="#" style="color:var(--primary);cursor:pointer;">Войти</a>
+          </p>
+
+          <form @submit.prevent="submit" :class="{'shake': shaking}" class="col" style="margin-top:22px;">
+            <div class="field">
+              <label class="label" style="color:rgba(229,231,235,.7);">Имя пользователя</label>
+              <input class="input" v-model="username" placeholder="username (≥ 3 символа)" autocomplete="username"
+                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+            </div>
+            <div class="field">
+              <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
+              <input class="input" v-model="password" type="password" placeholder="password (≥ 6 символов)" autocomplete="new-password"
+                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+              <span class="hint" style="color:rgba(229,231,235,.45);">Минимум 6 символов</span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" :disabled="loading" style="margin-top:6px;">
+              <span v-if="loading" class="spin">⟳</span>
+              <span v-else>Создать аккаунт</span>
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="auth-photo"><img src="/css/bg.jpg" alt=""></div>
+    </div>
+  `,
+};
+
+/* ─────────────────── PAGE: Board ─────────────────── */
+const BoardPage = {
+  components: { MacBar },
+  setup() {
+    const router    = useRouter();
+    const flag      = ref('');
+    const tasks     = ref([]);
+    const board     = ref([]);
+    const pageLoad  = ref(true);
+    const submitting = ref(false);
+    const shakeForm = ref(false);
+    const popForm   = ref(false);
+    let timer = null;
+
+    const solvedCount = computed(() => tasks.value.filter(t => t.solved).length);
+    const totalCount  = computed(() => tasks.value.length);
+    const progress    = computed(() => totalCount.value ? (solvedCount.value / totalCount.value) * 100 : 0);
+
+    async function loadBoard() {
+      const res = await fetch('/api/board').then(r => r.json()).catch(() => null);
+      if (!res) return;
+      if (!res.ok) { router.push('/login'); return; }
+      tasks.value = res.tasks;
+      board.value = res.leaderboard;
+      if (res.user) store.user = res.user;
+      pageLoad.value = false;
+    }
+
+    async function submitFlag(e) {
+      if (submitting.value || !flag.value.trim()) return;
+      submitting.value = true;
+      const btn = e.submitter;
+
+      const res = await fetch('/api/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flag: flag.value.trim(), csrf: store.csrf }),
+      }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+
+      submitting.value = false;
+      await store.refreshCsrf();
+
+      if (res.ok) {
+        store.toast(res.message, 'ok');
+        flag.value = '';
+        popForm.value = true;
+        setTimeout(() => popForm.value = false, 400);
+        launchConfetti(btn);
+        await loadBoard();
+      } else {
+        store.toast(res.error, res.category === 'info' ? 'info' : 'err');
+        shakeForm.value = true;
+        setTimeout(() => shakeForm.value = false, 500);
+      }
+    }
+
+    async function logout() {
+      await store.logout();
+      router.push('/');
+    }
+
+    onMounted(async () => {
+      if (!store.user) {
+        const me = await fetch('/api/me').then(r => r.json()).catch(() => ({ user: null }));
+        store.user = me.user;
+      }
+      if (!store.user) { router.push('/login'); return; }
+      await loadBoard();
+      timer = setInterval(loadBoard, 30000);
+    });
+    onUnmounted(() => clearInterval(timer));
+
+    return { store, router, flag, tasks, board, pageLoad, submitting, shakeForm, popForm,
+             solvedCount, totalCount, progress, submitFlag, logout };
+  },
+  template: `
+    <div class="board-root">
+
+      <!-- Sticky navbar -->
+      <nav class="board-nav">
+        <div class="container">
+          <div class="topbar-inner">
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <span style="font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--textOnDark);">OSKOLCTF</span>
+              <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">board · submit · leaderboard</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);font-size:12px;font-weight:800;color:var(--textOnDark);">
+                👤 {{ store.user?.username }}
+              </div>
+              <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+                Выйти
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Loader -->
+      <div v-if="pageLoad" style="display:flex;align-items:center;justify-content:center;gap:14px;padding:100px 0;color:var(--mutedOnDark);font-size:14px;">
+        <span class="spin" style="font-size:26px;">⟳</span> Загрузка...
+      </div>
+
+      <!-- Content -->
+      <div v-else class="container" style="padding:28px 0 64px;">
+        <div class="grid" style="gap:24px;">
+
+          <!-- ── Left ── -->
+          <div class="col">
+
+            <!-- Submit card -->
+            <div class="dark-card" :class="{'pop': popForm}">
+              <div class="dark-card-h">
+                <mac-bar title="SUBMIT FLAG" />
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+                  <div>
+                    <p class="title" style="color:var(--textOnDark);">Сдать флаг</p>
+                    <p class="subtitle">Введи флаг в формате <span class="kbd">oskolctf{...}</span></p>
+                  </div>
+                </div>
+              </div>
+              <div class="dark-card-b">
+                <form @submit.prevent="submitFlag($event)" :class="{'shake': shakeForm}">
+                  <div class="field" style="margin-bottom:12px;">
+                    <label style="font-size:12px;font-weight:600;color:rgba(229,231,235,.65);">Флаг</label>
+                    <input class="dark-input" v-model="flag" placeholder="oskolctf{...}">
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-full" :disabled="submitting">
+                    <span v-if="submitting" class="spin">⟳</span>
+                    <span v-else>Отправить флаг</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Tasks card -->
+            <div class="dark-card">
+              <div class="dark-card-h">
+                <mac-bar title="CHALLENGES" />
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:4px;">
+                  <p class="title" style="color:var(--textOnDark);">Задания</p>
+                  <span style="font-size:12px;font-weight:700;color:#a5b4fc;">
+                    {{ solvedCount }}/{{ totalCount }}
+                  </span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill" :style="{width: progress + '%'}"></div>
+                </div>
+              </div>
+              <div class="dark-card-b" style="display:flex;flex-direction:column;gap:10px;">
+                <div v-for="(t, i) in tasks" :key="t.id"
+                  class="task-row" :class="t.solved ? 'solved' : ''"
+                  :style="{'animation-delay': (i * 0.06) + 's'}"
+                >
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <span style="font-weight:800;" :style="{color: t.solved ? '#4ade80' : '#e5e7eb'}">
+                      Task{{ t.id }}
+                    </span>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <span style="font-size:12px;padding:3px 9px;border-radius:999px;font-weight:700;background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;">
+                        {{ t.points }} pts
+                      </span>
+                      <span v-if="t.solved" style="font-size:12px;padding:3px 9px;border-radius:999px;font-weight:700;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#4ade80;">
+                        ✓ решено
+                      </span>
+                      <span v-else style="font-size:12px;padding:3px 9px;border-radius:999px;font-weight:700;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--mutedOnDark);">
+                        не решено
+                      </span>
+                    </div>
+                  </div>
+                  <a :href="t.link" target="_blank"
+                    style="flex-shrink:0;padding:8px 14px;font-size:13px;font-weight:600;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--textOnDark);text-decoration:none;transition:.15s ease;"
+                    onmouseover="this.style.background='rgba(255,255,255,.14)'"
+                    onmouseout="this.style.background='rgba(255,255,255,.08)'">
+                    Открыть →
+                  </a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── Leaderboard ── -->
+          <div class="dark-card" style="align-self:start;">
+            <div class="dark-card-h">
+              <mac-bar title="LEADERBOARD" />
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <p class="title" style="color:var(--textOnDark);">Leaderboard</p>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="refresh-dot"></div>
+                  <span style="font-size:11px;font-weight:600;color:rgba(229,231,235,.35);">live</span>
+                </div>
+              </div>
+            </div>
+            <div class="dark-card-b" style="padding-top:8px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="color:var(--mutedOnDark);">#</th>
+                    <th style="color:var(--mutedOnDark);">Участник</th>
+                    <th style="color:var(--mutedOnDark);">Очки</th>
+                    <th style="color:var(--mutedOnDark);">✓</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(r, i) in board" :key="r.username"
+                    class="lb-row" :class="r.username === store.user?.username ? 'lb-me' : ''"
+                    :style="{animationDelay: (i*0.04)+'s', animation:'fadeSlideIn .4s ease both'}"
+                  >
+                    <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
+                      <span class="rank-badge" :class="i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''">
+                        {{ i+1 }}
+                      </span>
+                    </td>
+                    <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);"
+                      :style="{color: r.username===store.user?.username ? '#a5b4fc' : 'var(--textOnDark)', fontWeight: r.username===store.user?.username ? '800' : '600'}">
+                      {{ r.username }}
+                      <span v-if="r.username===store.user?.username" style="font-size:10px;opacity:.45;margin-left:4px;">(ты)</span>
+                    </td>
+                    <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
+                      <span style="font-size:12px;padding:3px 9px;border-radius:999px;font-weight:700;background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;">
+                        {{ r.score }}
+                      </span>
+                    </td>
+                    <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);color:var(--mutedOnDark);">
+                      {{ r.solved_count }}
+                    </td>
+                  </tr>
+                  <tr v-if="!board.length">
+                    <td colspan="4" style="text-align:center;padding:24px;color:var(--mutedOnDark);background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.05);">
+                      Пока никого нет...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `,
+};
+
+/* ─────────────────── ROUTER ─────────────────── */
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes: [
+    { path: '/',          component: HomePage    },
+    { path: '/login',     component: LoginPage   },
+    { path: '/register',  component: RegisterPage },
+    { path: '/board',     component: BoardPage   },
+    { path: '/:_(.*)*',   redirect: '/'          },
+  ],
+});
+
+/* ─────────────────── APP ─────────────────── */
+const App = createApp({
+  components: { AppToasts },
+  setup() {
+    onMounted(() => store.init());
+    return {};
+  },
+  template: `
+    <app-toasts />
+    <router-view v-slot="{ Component }">
+      <Transition name="fade-slide" mode="out-in">
+        <component :is="Component" :key="$route.path" />
+      </Transition>
+    </router-view>
+  `,
+});
+
+App.use(router);
+App.mount('#app');
+
+/* vibecode front by nekoty */
+console.log(
+  '%c vibecode front by nekoty ',
+  'background:#6366f1;color:#fff;font-weight:900;font-size:13px;border-radius:8px;padding:4px 10px;letter-spacing:.05em;'
+);
+</script>
+</body>
+</html>

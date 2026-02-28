@@ -1,13 +1,55 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="card">
-  <h2>Login</h2>
-  {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
-  <form method="post">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <p><input name="username" placeholder="username"></p>
-    <p><input name="password" type="password" placeholder="password"></p>
-    <button type="submit">Войти</button>
-  </form>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Войти — OSKOLCTF</title>
+  <link rel="stylesheet" href="/css/ui.css">
+</head>
+<body>
+<div class="auth">
+  <div class="auth-panel">
+    <div class="brand" style="color:var(--textOnDark);">
+      <b>OSKOLCTF</b>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ 'ok' if cat=='ok' else 'err' if cat=='error' else 'info' }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="auth-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span class="wdot wdot-green"></span></div>
+        <span style="font-size:11px;font-weight:700;opacity:.45;letter-spacing:.08em;">LOGIN</span>
+      </div>
+      <h1>Вход</h1>
+      <p style="margin-top:6px;">Нет аккаунта? <a href="/register" style="color:var(--primary);">Зарегистрироваться</a></p>
+
+      {% if error %}
+        <div class="flash flash-err" style="margin-top:14px;">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" style="margin-top:18px;" class="col">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <div class="field">
+          <label class="label">Имя пользователя</label>
+          <input class="input" name="username" placeholder="username" autocomplete="username">
+        </div>
+        <div class="field">
+          <label class="label">Пароль</label>
+          <input class="input" name="password" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" style="margin-top:4px;">Войти</button>
+      </form>
+    </div>
+  </div>
+  <div class="auth-photo">
+    <img src="/css/bg.jpg" alt="">
+  </div>
 </div>
-{% endblock %}
+</body>
+</html>
