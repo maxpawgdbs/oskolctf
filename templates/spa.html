@@ -785,18 +785,19 @@
       color: #f97316;
     }
 
-    /* Progress bar */
-    .progress-bar-wrap {
-      height: 4px;
-      border-radius: 99px;
-      background: rgba(255, 255, 255, .06);
+    /* Progress bar inside stats */
+    .b-stats-progress {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 3px;
+      border-radius: 0 0 16px 16px;
+      background: rgba(255,255,255,.06);
       overflow: hidden;
-      margin-top: 6px;
     }
-
-    .progress-bar-fill {
+    .b-stats { position: relative; }
+    .b-stats-progress-fill {
       height: 100%;
-      border-radius: 99px;
+      border-radius: 0 0 16px 16px;
       background: linear-gradient(90deg, #6366f1, #22c55e);
       transition: width .6s cubic-bezier(.34, 1.56, .64, 1);
     }
@@ -1538,6 +1539,9 @@
             <span class="b-stat-v">{{ board.length }}</span>
             <span class="b-stat-l">Участников</span>
           </div>
+          <div class="b-stats-progress">
+            <div class="b-stats-progress-fill" :style="{width: progress + '%'}"></div>
+          </div>
         </div>
 
         <!-- Board layout -->
@@ -1557,11 +1561,6 @@
                 {{ catIcon(cat) }} {{ cat }}
                 <span class="cat-count">{{ catCount(cat) }}</span>
               </button>
-            </div>
-
-            <!-- Progress bar -->
-            <div class="progress-bar-wrap" style="margin-bottom:18px;">
-              <div class="progress-bar-fill" :style="{width: progress + '%'}"></div>
             </div>
 
             <!-- Tasks grid -->
@@ -1646,9 +1645,8 @@
                       class="lb-row" :class="r.username === store.user?.username ? 'lb-me' : ''"
                       :style="{animationDelay:(i*0.04)+'s',animation:'fadeSlideIn .4s ease both'}">
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
-                        <span class="rank-badge" :class="i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''">
-                          {{ i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1 }}
-                        </span>
+                        <span v-if="i<3" style="font-size:18px;line-height:1;">{{ i===0?'🥇':i===1?'🥈':'🥉' }}</span>
+                        <span v-else class="rank-badge">{{ i+1 }}</span>
                       </td>
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);"
                         :style="{color:r.username===store.user?.username?'#a5b4fc':'var(--textOnDark)',fontWeight:r.username===store.user?.username?'800':'600'}">
