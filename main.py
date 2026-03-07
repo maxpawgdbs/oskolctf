@@ -28,6 +28,46 @@ TASK_POINTS = {
     5: 100,
 }
 
+# Метаданные заданий — название, категория, сложность, описание
+TASKS = {
+    0: {
+        "name": "Привет, CTF!",
+        "category": "Разное",
+        "difficulty": "Очень лёгкое",
+        "description": "Флаг лежит прямо на сервере. Найди правильный маршрут и забери его. Иногда всё проще, чем кажется.",
+    },
+    1: {
+        "name": "Невидимка",
+        "category": "Web",
+        "difficulty": "Лёгкое",
+        "description": "Программист думал, что скрытые комментарии никто не увидит. Загляни в исходный код страницы — браузеры показывают его всем желающим.",
+    },
+    2: {
+        "name": "Печенька",
+        "category": "Web",
+        "difficulty": "Лёгкое",
+        "description": "Разработчик оставил кое-что вкусное в HTTP-ответе. Загляни в куки браузера — там может быть кое-что интересное.",
+    },
+    3: {
+        "name": "Запрос в никуда",
+        "category": "Web",
+        "difficulty": "Среднее",
+        "description": "Сервер принимает специальный POST-запрос. Но просто текст не подойдёт — данные нужно предварительно закодировать в base64.",
+    },
+    4: {
+        "name": "Куки-монстр",
+        "category": "Web",
+        "difficulty": "Среднее",
+        "description": "Хороший разработчик никогда не доверяет клиенту. Плохой — оставляет доступ в куках. Что поставил разработчик? Попробуй это изменить.",
+    },
+    5: {
+        "name": "Секретная тропа",
+        "category": "Разное",
+        "difficulty": "Лёгкое",
+        "description": "Иногда разработчики оставляют скрытые маршруты на сервере. Попробуй поискать нестандартные URL — что если на сервере есть ещё что-то кроме обычных страниц?",
+    },
+}
+
 DB_PATH = os.path.join(os.getcwd(), "ctf.sqlite3")
 
 
@@ -237,6 +277,12 @@ def board():
     ).fetchall()
     my_solved = {r["task_id"] for r in my_solves}
 
+    # сколько всего решили каждый таск
+    sc_rows = conn.execute(
+        "SELECT task_id, COUNT(*) as cnt FROM solves GROUP BY task_id"
+    ).fetchall()
+    solve_counts = {r["task_id"]: r["cnt"] for r in sc_rows}
+
     # лидерборд
     rows = conn.execute("""
         SELECT u.username,
@@ -246,6 +292,7 @@ def board():
                    WHEN 2 THEN ?
                    WHEN 3 THEN ?
                    WHEN 4 THEN ?
+                   WHEN 5 THEN ?
                    ELSE 0
                END), 0) AS score,
                COUNT(s.id) AS solved_count
@@ -260,16 +307,23 @@ def board():
         TASK_POINTS.get(2, 0),
         TASK_POINTS.get(3, 0),
         TASK_POINTS.get(4, 0),
+        TASK_POINTS.get(5, 0),
     )).fetchall()
     conn.close()
 
     tasks = []
     for i in range(len(flags)):
+        meta = TASKS.get(i, {})
         tasks.append({
             "id": i,
+            "name": meta.get("name", f"Task {i}"),
+            "category": meta.get("category", "Разное"),
+            "difficulty": meta.get("difficulty", "?"),
+            "description": meta.get("description", ""),
             "points": TASK_POINTS.get(i, 0),
             "solved": i in my_solved,
             "link": f"/task{i}",
+            "solve_count": solve_counts.get(i, 0),
         })
 
     return flask.render_template(
@@ -399,30 +453,41 @@ def api_board():
         "SELECT task_id, solved_at FROM solves WHERE user_id = ?", (user["id"],)
     ).fetchall()
     my_solved = {r["task_id"]: r["solved_at"] for r in my_solves}
-    rows = conn.execute("""
+
+    sc_rows = conn.execute(
+        "SELECT task_id, COUNT(*) as cnt FROM solves GROUP BY task_id"
+    ).fetchall()
+    solve_counts = {r["task_id"]: r["cnt"] for r in sc_rows}
+
+    n = len(flags)
+    case_sql = " ".join(f"WHEN {i} THEN ?" for i in range(n))
+    rows = conn.execute(f"""
         SELECT u.username,
-               COALESCE(SUM(CASE s.task_id
-                   WHEN 0 THEN ? WHEN 1 THEN ? WHEN 2 THEN ?
-                   WHEN 3 THEN ? WHEN 4 THEN ? ELSE 0
-               END), 0) AS score,
+               COALESCE(SUM(CASE s.task_id {case_sql} ELSE 0 END), 0) AS score,
                COUNT(s.id) AS solved_count
         FROM users u
         LEFT JOIN solves s ON s.user_id = u.id
         GROUP BY u.id
         ORDER BY score DESC, solved_count DESC, u.username ASC
         LIMIT 50
-    """, tuple(TASK_POINTS.get(i, 0) for i in range(5))).fetchall()
+    """, tuple(TASK_POINTS.get(i, 0) for i in range(n))).fetchall()
     conn.close()
-    tasks = [
-        {
+
+    tasks = []
+    for i in range(n):
+        meta = TASKS.get(i, {})
+        tasks.append({
             "id": i,
+            "name": meta.get("name", f"Task {i}"),
+            "category": meta.get("category", "Разное"),
+            "difficulty": meta.get("difficulty", "?"),
+            "description": meta.get("description", ""),
             "points": TASK_POINTS.get(i, 0),
             "solved": i in my_solved,
             "solved_at": my_solved.get(i),
+            "solve_count": solve_counts.get(i, 0),
             "link": f"/task{i}",
-        }
-        for i in range(len(flags))
-    ]
+        })
     leaderboard = [
         {"username": r["username"], "score": r["score"], "solved_count": r["solved_count"]}
         for r in rows
@@ -470,6 +535,21 @@ def api_submit():
     except sqlite3.IntegrityError:
         conn.close()
         return flask.jsonify({"ok": False, "error": f"Task{task_id} уже решён", "category": "info"})
+
+
+# ========== SPA catch-all (должен быть последним маршрутом) ==========
+# Отдаём spa.html для всех путей, которые не являются API/task/auth маршрутами
+_SPA_SKIP = {"login", "register", "logout", "board", "submit", "flag"}
+
+@app.route("/<path:path>")
+def spa_catchall(path):
+    # пропускаем API, таски и функциональные маршруты
+    top = path.split("/")[0]
+    if top.startswith("api") or top.startswith("task") or top in _SPA_SKIP:
+        flask.abort(404)
+    return flask.send_from_directory(
+        os.path.join(os.getcwd(), "templates"), "spa.html"
+    )
 
 
 # ========== startup ==========

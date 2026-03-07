@@ -1,19 +1,126 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page">
-  <div class="grid">
 
-    <div class="col">
-      <!-- Submit -->
+{# Считаем мои очки #}
+{% set my_score = namespace(v=0) %}
+{% for t in tasks %}{% if t.solved %}{% set my_score.v = my_score.v + t.points %}{% endif %}{% endfor %}
+
+<div class="ctf-board">
+
+  <!-- ======= STATS BAR ======= -->
+  <div class="board-stats">
+    <div class="bstat">
+      <span class="bstat-v">{{ tasks|length }}</span>
+      <span class="bstat-l">Заданий</span>
+    </div>
+    <div class="bstat-sep"></div>
+    <div class="bstat">
+      <span class="bstat-v">{{ tasks|selectattr('solved')|list|length }}<span class="bstat-of"> / {{ tasks|length
+          }}</span></span>
+      <span class="bstat-l">Решено мной</span>
+    </div>
+    <div class="bstat-sep"></div>
+    <div class="bstat">
+      <span class="bstat-v accent-v">{{ my_score.v }}</span>
+      <span class="bstat-l">Мои очки</span>
+    </div>
+    <div class="bstat-sep"></div>
+    <div class="bstat">
+      <span class="bstat-v">{{ leaderboard|length }}</span>
+      <span class="bstat-l">Участников</span>
+    </div>
+  </div>
+
+  <!-- ======= MAIN LAYOUT ======= -->
+  <div class="board-layout">
+
+    <!-- ====== LEFT: TASKS ====== -->
+    <div class="tasks-section">
+
+      <!-- Category filter -->
+      <div class="cat-filter" id="catFilter">
+        <button class="cat-btn active" data-cat="all" onclick="filterCat(this,'all')">
+          🗂 Все задания
+        </button>
+        {% set cats = namespace(seen=[]) %}
+        {% for t in tasks %}
+        {% if t.category not in cats.seen %}
+        {% set cats.seen = cats.seen + [t.category] %}
+        <button class="cat-btn" data-cat="{{ t.category }}" onclick="filterCat(this,'{{ t.category }}')">
+          {% if t.category == 'Web' %}🌐
+          {% elif t.category == 'Разное' %}🎯
+          {% elif t.category == 'Крипто' %}🔐
+          {% elif t.category == 'Форензика' %}🔬
+          {% elif t.category == 'Реверс' %}⚙️
+          {% elif t.category == 'Pwn' %}💥
+          {% elif t.category == 'ОСИНТ' %}🕵️
+          {% endif %}
+          {{ t.category }}
+          <span class="cat-count">{{ tasks|selectattr("category","equalto",t.category)|list|length }}</span>
+        </button>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- Tasks grid -->
+      <div class="tasks-grid" id="tasksGrid">
+        {% for t in tasks %}
+        <div class="task-card {% if t.solved %}is-solved{% endif %}" data-cat="{{ t.category }}" data-id="{{ t.id }}"
+          data-name="{{ t.name | e }}" data-diff="{{ t.difficulty | e }}" data-desc="{{ t.description | e }}"
+          data-pts="{{ t.points }}" data-solves="{{ t.solve_count }}" data-solved="{{ '1' if t.solved else '0' }}"
+          data-link="{{ t.link }}" onclick="openTaskModal(this)">
+
+          {% if t.solved %}
+          <div class="solved-ribbon">✓ Решено</div>
+          {% endif %}
+
+          <div class="tc-top">
+            <span class="cat-label cat-{{ t.category | lower | replace(' ', '-') }}">
+              {% if t.category == 'Web' %}🌐
+              {% elif t.category == 'Разное' %}🎯
+              {% elif t.category == 'Крипто' %}🔐
+              {% elif t.category == 'Форензика' %}🔬
+              {% elif t.category == 'Реверс' %}⚙️
+              {% elif t.category == 'Pwn' %}💥
+              {% elif t.category == 'ОСИНТ' %}🕵️
+              {% endif %}
+              {{ t.category }}
+            </span>
+            <span class="diff-label diff-{{ t.difficulty | lower | replace(' ', '-') | replace('ё', 'e') }}">{{
+              t.difficulty }}</span>
+          </div>
+
+          <div class="tc-body">
+            <h3 class="tc-name">{{ t.name }}</h3>
+            <p class="tc-desc">{{ t.description[:88] }}{% if t.description|length > 88 %}…{% endif %}</p>
+          </div>
+
+          <div class="tc-foot">
+            <span class="pts-chip">{{ t.points }} pts</span>
+            <span class="solves-chip">👥 {{ t.solve_count }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div><!-- /tasks-grid -->
+
+    </div><!-- /tasks-section -->
+
+    <!-- ====== RIGHT: SIDEBAR ====== -->
+    <div class="board-sidebar">
+
+      <!-- Submit flag card -->
       <div class="card">
         <div class="winbar-strip">
-          <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span
-              class="wdot wdot-green"></span></div>
+          <div class="winbar">
+            <span class="wdot wdot-red"></span>
+            <span class="wdot wdot-yellow"></span>
+            <span class="wdot wdot-green"></span>
+          </div>
         </div>
         <div class="card-h">
           <div>
-            <p class="title">Сдать флаг</p>
-            <p class="subtitle">Введи флаг в формате <span class="kbd">oskolctf{...}</span></p>
+            <p class="title" style="font-size:17px;">🚩 Сдать флаг</p>
+            <p class="subtitle" style="font-size:12px;">Формат: <span class="kbd">oskolctf{...}</span></p>
           </div>
         </div>
         <div class="card-b">
@@ -21,76 +128,159 @@
             <input type="hidden" name="csrf" value="{{ csrf }}">
             <div class="field" style="margin-bottom:12px;">
               <label class="label">Флаг</label>
-              <input class="input" name="flag" placeholder="oskolctf{...}">
+              <input class="input" name="flag" placeholder="oskolctf{...}" autocomplete="off" spellcheck="false">
             </div>
-            <button type="submit" class="btn btn-primary btn-full">Отправить</button>
+            <button type="submit" class="btn btn-primary btn-full">Отправить →</button>
           </form>
         </div>
       </div>
 
-      <!-- Tasks -->
+      <!-- Leaderboard card -->
       <div class="card">
         <div class="winbar-strip">
-          <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span
-              class="wdot wdot-green"></span></div>
+          <div class="winbar">
+            <span class="wdot wdot-red"></span>
+            <span class="wdot wdot-yellow"></span>
+            <span class="wdot wdot-green"></span>
+          </div>
         </div>
         <div class="card-h">
-          <p class="title">Задания</p>
+          <p class="title" style="font-size:17px;">🏆 Таблица лидеров</p>
         </div>
-        <div class="card-b col">
-          {% for t in tasks %}
-          <div class="task">
-            <div class="task-left">
-              <span class="task-name"><a href="{{ t.link }}">Task{{ t.id }}</a></span>
-              <div class="task-meta">
-                <span class="badge badge-pts">{{ t.points }} pts</span>
-                {% if t.solved %}
-                <span class="badge badge-ok">✓ решено</span>
-                {% else %}
-                <span class="badge">не решено</span>
-                {% endif %}
-              </div>
-            </div>
-            <a href="{{ t.link }}" class="btn btn-secondary" style="padding:8px 14px;font-size:13px;">Открыть →</a>
-          </div>
-          {% endfor %}
+        <div class="card-b" style="padding:12px 14px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Участник</th>
+                <th>Очки</th>
+                <th>✓</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in leaderboard %}
+              <tr {% if r.username==user.username %}class="lb-me" {% endif %}>
+                <td class="td-rank">
+                  {% if loop.index == 1 %}🥇
+                  {% elif loop.index == 2 %}🥈
+                  {% elif loop.index == 3 %}🥉
+                  {% else %}{{ loop.index }}{% endif %}
+                </td>
+                <td style="font-weight:700;">
+                  {{ r.username }}
+                  {% if r.username == user.username %}<span class="you-chip">ты</span>{% endif %}
+                </td>
+                <td><span class="badge badge-pts">{{ r.score }}</span></td>
+                <td style="color:var(--mutedOnDark);">{{ r.solved_count }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" style="text-align:center;padding:24px 10px;color:var(--mutedOnDark);">
+                  Пока никого нет
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /board-sidebar -->
+  </div><!-- /board-layout -->
+</div><!-- /ctf-board -->
+
+<!-- ======= TASK MODAL ======= -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal-box" id="modalBox" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-head-info">
+        <div class="modal-badges" id="modalBadges"></div>
+        <h2 class="modal-title" id="modalTitle"></h2>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Закрыть">×</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-section">
+        <p class="modal-section-label">📋 Описание задания</p>
+        <p class="modal-desc" id="modalDesc"></p>
+      </div>
+      <div class="modal-divider"></div>
+      <div class="modal-stats-row">
+        <div class="modal-stat">
+          <span class="modal-stat-v" id="modalPts"></span>
+          <span class="modal-stat-l">очков</span>
+        </div>
+        <div class="modal-stat-sep"></div>
+        <div class="modal-stat">
+          <span class="modal-stat-v" id="modalSolves"></span>
+          <span class="modal-stat-l">решили</span>
+        </div>
+        <div class="modal-stat-sep"></div>
+        <div class="modal-stat" id="modalSolvedStat">
+          <span class="modal-stat-v" style="color:#4ade80;">✓</span>
+          <span class="modal-stat-l" style="color:#4ade80;">решено</span>
         </div>
       </div>
     </div>
 
-    <!-- Leaderboard -->
-    <div class="card">
-      <div class="winbar-strip">
-        <div class="winbar"><span class="wdot wdot-red"></span><span class="wdot wdot-yellow"></span><span
-            class="wdot wdot-green"></span></div>
-      </div>
-      <div class="card-h">
-        <p class="title">Leaderboard</p>
-      </div>
-      <div class="card-b">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Команда</th>
-              <th>Очки</th>
-              <th>Решено</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in leaderboard %}
-            <tr>
-              <td>{{ loop.index }}</td>
-              <td>{{ r.username }}</td>
-              <td><span class="badge badge-pts">{{ r.score }}</span></td>
-              <td>{{ r.solved_count }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="modal-footer">
+      <a class="btn btn-primary" id="modalLink" href="#" target="_blank" rel="noopener">
+        Открыть задание →
+      </a>
+      <button class="btn btn-ghost" onclick="closeModal()">Закрыть</button>
     </div>
-
   </div>
 </div>
+
+<script>
+  function filterCat(btn, cat) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.task-card').forEach(card => {
+      card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
+    });
+  }
+
+  function openTaskModal(card) {
+    const d = card.dataset;
+    const cat = d.cat || '';
+    const diff = d.diff || '';
+    const solved = d.solved === '1';
+
+    document.getElementById('modalTitle').textContent = d.name;
+    document.getElementById('modalDesc').textContent = d.desc;
+    document.getElementById('modalPts').textContent = d.pts;
+    document.getElementById('modalSolves').textContent = d.solves;
+    document.getElementById('modalLink').href = d.link;
+    document.getElementById('modalSolvedStat').style.display = solved ? '' : 'none';
+
+    const catSlug = cat.toLowerCase().replace(/ /g, '-');
+    const diffSlug = diff.toLowerCase().replace(/ /g, '-').replace(/ё/g, 'e');
+    const catIcon = {
+      'web': '🌐', 'разное': '🎯', 'крипто': '🔐',
+      'форензика': '🔬', 'реверс': '⚙️', 'pwn': '💥', 'осинт': '🕵️'
+    }[catSlug] || '';
+
+    document.getElementById('modalBadges').innerHTML =
+      `<span class="cat-label cat-${catIcon ? catSlug : ''}">${catIcon} ${cat}</span>` +
+      `<span class="diff-label diff-${diffSlug}">${diff}</span>` +
+      (solved ? '<span class="solved-badge">✓ Решено</span>' : '');
+
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+
 {% endblock %}
