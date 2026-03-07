@@ -788,13 +788,19 @@
     /* Progress bar inside stats */
     .b-stats-progress {
       position: absolute;
-      left: 0; right: 0; bottom: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       height: 3px;
       border-radius: 0 0 16px 16px;
-      background: rgba(255,255,255,.06);
+      background: rgba(255, 255, 255, .06);
       overflow: hidden;
     }
-    .b-stats { position: relative; }
+
+    .b-stats {
+      position: relative;
+    }
+
     .b-stats-progress-fill {
       height: 100%;
       border-radius: 0 0 16px 16px;
