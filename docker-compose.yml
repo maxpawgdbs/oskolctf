@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      # База данных хранится снаружи контейнера — не теряется при пересборке
+      - ./data:/data
+      # tasks.json можно менять без пересборки образа
+      - ./tasks.json:/app/tasks.json:ro
+      # Файлы задач
+      - ./task:/app/task:ro
+    expose:
+      - "8005"
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
