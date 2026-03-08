@@ -1193,7 +1193,7 @@
             <div class="hero-btns">
               <template v-if="!store.user">
                 <button @click="router.push('/register')" class="btn btn-primary" style="font-size:15px;padding:13px 26px;">
-                  Начать бесплатно →
+                  Начать бесплатно
                 </button>
                 <button @click="router.push('/login')" class="btn btn-ghost">
                   Войти
@@ -1201,7 +1201,7 @@
               </template>
               <template v-else>
                 <button @click="router.push('/board')" class="btn btn-primary" style="font-size:15px;padding:13px 26px;">
-                  Открыть борд →
+                  Открыть борд
                 </button>
               </template>
             </div>
@@ -1618,7 +1618,7 @@
                   </div>
                   <button type="submit" class="btn btn-primary btn-full" :disabled="submitting">
                     <span v-if="submitting" class="spin">⟳</span>
-                    <span v-else>Отправить →</span>
+                    <span v-else>Отправить</span>
                   </button>
                 </form>
               </div>
@@ -1721,7 +1721,7 @@
 
           <div class="spa-modal-footer">
             <a class="btn btn-primary" :href="activeModal.link" target="_blank" rel="noopener" @click="closeModal()">
-              Открыть задание →
+              Открыть задание
             </a>
             <button class="btn btn-ghost" @click="closeModal()">Закрыть</button>
           </div>
