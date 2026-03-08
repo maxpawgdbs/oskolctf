@@ -1249,6 +1249,34 @@
   `,
     };
 
+    /* ─────────────────── VALIDATION ─────────────────── */
+    const WEAK_PASSWORDS = new Set([
+      '123456', '1234567', '12345678', '123456789', '1234567890', '12345', '111111',
+      'password', 'qwerty', 'qwerty123', 'abc123', 'letmein', 'monkey', 'master',
+      'dragon', 'baseball', 'iloveyou', 'sunshine', 'princess', 'welcome', 'shadow',
+      'superman', 'michael', 'football', 'login', 'passw0rd', 'starwars', 'hello',
+      'trustno1', 'admin', 'root', 'test', 'guest', 'user', 'demo',
+    ]);
+
+    function validateUsername(v) {
+      if (!v) return 'Введи имя пользователя';
+      if (v.length < 3) return 'Минимум 3 символа';
+      if (v.length > 16) return 'Максимум 16 символов';
+      if (!/^[a-zA-Z0-9_\-]+$/.test(v)) return 'Только латиница, цифры, _ и -';
+      return '';
+    }
+
+    function validatePassword(v, isRegister = false) {
+      if (!v) return 'Введи пароль';
+      if (v.length < 6) return 'Минимум 6 символов';
+      if (v.length > 16) return 'Максимум 16 символов';
+      if (!isRegister) return '';
+      if (WEAK_PASSWORDS.has(v.toLowerCase())) return 'Слишком простой пароль';
+      if (!/[a-zA-Z]/.test(v)) return 'Пароль должен содержать хотя бы одну букву';
+      if (!/[0-9!@#$%^&*()_+\-=]/.test(v)) return 'Пароль должен содержать цифру или спецсимвол';
+      return '';
+    }
+
     /* ─────────────────── PAGE: Login ─────────────────── */
     const LoginPage = {
       components: { MacBar },
@@ -1258,9 +1286,22 @@
         const password = ref('');
         const loading = ref(false);
         const shaking = ref(false);
+        const usernameErr = ref('');
+        const passwordErr = ref('');
+
+        function validate() {
+          usernameErr.value = validateUsername(username.value);
+          passwordErr.value = validatePassword(password.value);
+          return !usernameErr.value && !passwordErr.value;
+        }
 
         async function submit() {
           if (loading.value) return;
+          if (!validate()) {
+            shaking.value = true;
+            setTimeout(() => { shaking.value = false; }, 500);
+            return;
+          }
           loading.value = true;
           const res = await fetch('/api/auth/login', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1280,7 +1321,7 @@
             password.value = '';
           }
         }
-        return { store, router, username, password, loading, shaking, submit };
+        return { store, router, username, password, loading, shaking, usernameErr, passwordErr, submit };
       },
       template: `
     <div class="auth">
@@ -1298,13 +1339,15 @@
           <form @submit.prevent="submit" :class="{'shake': shaking}" class="col" style="margin-top:22px;">
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Имя пользователя</label>
-              <input class="input" v-model="username" placeholder="username" autocomplete="username"
-                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+              <input class="input" v-model="username" placeholder="username" autocomplete="username" maxlength="16"
+                :style="{background:'rgba(255,255,255,.07)',borderColor:usernameErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
+              <span v-if="usernameErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ usernameErr }}</span>
             </div>
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
-              <input class="input" v-model="password" type="password" placeholder="••••••••" autocomplete="current-password"
-                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+              <input class="input" v-model="password" type="password" placeholder="••••••••" autocomplete="current-password" maxlength="16"
+                :style="{background:'rgba(255,255,255,.07)',borderColor:passwordErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
+              <span v-if="passwordErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ passwordErr }}</span>
             </div>
             <button type="submit" class="btn btn-primary btn-full" :disabled="loading" style="margin-top:6px;">
               <span v-if="loading" class="spin">⟳</span>
@@ -1327,9 +1370,36 @@
         const password = ref('');
         const loading = ref(false);
         const shaking = ref(false);
+        const usernameErr = ref('');
+        const passwordErr = ref('');
+
+        const passStrength = computed(() => {
+          const v = password.value;
+          if (!v) return 0;
+          let score = 0;
+          if (v.length >= 8) score++;
+          if (v.length >= 12) score++;
+          if (/[A-Z]/.test(v)) score++;
+          if (/[0-9]/.test(v)) score++;
+          if (/[!@#$%^&*()_+\-=]/.test(v)) score++;
+          return Math.min(score, 4);
+        });
+        const passStrengthLabel = computed(() => ['', 'Слабый', 'Средний', 'Хороший', 'Сильный'][passStrength.value]);
+        const passStrengthColor = computed(() => ['', '#f87171', '#fde047', '#4ade80', '#22c55e'][passStrength.value]);
+
+        function validate() {
+          usernameErr.value = validateUsername(username.value);
+          passwordErr.value = validatePassword(password.value, true);
+          return !usernameErr.value && !passwordErr.value;
+        }
 
         async function submit() {
           if (loading.value) return;
+          if (!validate()) {
+            shaking.value = true;
+            setTimeout(() => { shaking.value = false; }, 500);
+            return;
+          }
           loading.value = true;
           const res = await fetch('/api/auth/register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1348,7 +1418,7 @@
             setTimeout(() => { shaking.value = false; }, 500);
           }
         }
-        return { store, router, username, password, loading, shaking, submit };
+        return { store, router, username, password, loading, shaking, usernameErr, passwordErr, passStrength, passStrengthLabel, passStrengthColor, submit };
       },
       template: `
     <div class="auth">
@@ -1366,14 +1436,24 @@
           <form @submit.prevent="submit" :class="{'shake': shaking}" class="col" style="margin-top:22px;">
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Имя пользователя</label>
-              <input class="input" v-model="username" placeholder="username (≥ 3 символа)" autocomplete="username"
-                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
+              <input class="input" v-model="username" placeholder="3–16 символов, a-z 0-9 _ -" autocomplete="username" maxlength="16"
+                :style="{background:'rgba(255,255,255,.07)',borderColor:usernameErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
+              <span v-if="usernameErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ usernameErr }}</span>
             </div>
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
-              <input class="input" v-model="password" type="password" placeholder="password (≥ 6 символов)" autocomplete="new-password"
-                style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);color:var(--textOnDark);">
-              <span class="hint" style="color:rgba(229,231,235,.45);">Минимум 6 символов</span>
+              <input class="input" v-model="password" type="password" placeholder="6–16 символов" autocomplete="new-password" maxlength="16"
+                :style="{background:'rgba(255,255,255,.07)',borderColor:passwordErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
+              <span v-if="passwordErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ passwordErr }}</span>
+              <div v-if="password && !passwordErr" style="margin-top:8px;">
+                <div style="display:flex;gap:4px;margin-bottom:4px;">
+                  <div v-for="i in 4" :key="i"
+                    style="height:3px;flex:1;border-radius:999px;transition:background .2s;"
+                    :style="{background: i <= passStrength ? passStrengthColor : 'rgba(255,255,255,.1)'}"></div>
+                </div>
+                <span style="font-size:11px;font-weight:700;" :style="{color: passStrengthColor}">{{ passStrengthLabel }}</span>
+              </div>
+              <span class="hint" style="color:rgba(229,231,235,.35);font-size:11px;margin-top:4px;">Буквы + цифра или спецсимвол</span>
             </div>
             <button type="submit" class="btn btn-primary btn-full" :disabled="loading" style="margin-top:6px;">
               <span v-if="loading" class="spin">⟳</span>
