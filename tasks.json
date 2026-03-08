@@ -9,6 +9,7 @@
     "flag": "oskolctf{task0_it_is_good_start}",
     "url": "/task0",
     "active": true,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -22,6 +23,7 @@
     "flag": "oskolctf{hahaha_really_my_first_ctf}",
     "url": "/task1",
     "active": true,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -35,6 +37,7 @@
     "flag": "oskolctf{ti_uzhe_umniy_esli_reshil_eto}",
     "url": "/task2",
     "active": true,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -48,6 +51,7 @@
     "flag": "oskolctf{xorg_worship_zhdet_tebya}",
     "url": "/task3",
     "active": true,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -61,6 +65,7 @@
     "flag": "oskolctf{moya_lubimaya_taska_posle_labirinta}",
     "url": "/task4",
     "active": true,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -88,6 +93,7 @@
     "flag": "oskolctf{caesar_cipher_placeholder_flag_6}",
     "url": "/task6",
     "active": false,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -101,6 +107,7 @@
     "flag": "oskolctf{forensics_lost_file_placeholder_7}",
     "url": "/task7",
     "active": false,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -114,6 +121,7 @@
     "flag": "oskolctf{crackme_binary_placeholder_flag_8}",
     "url": "/task8",
     "active": false,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -127,6 +135,7 @@
     "flag": "oskolctf{stack_bof_pwn_placeholder_flag_9}",
     "url": "/task9",
     "active": false,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   },
@@ -141,7 +150,62 @@
     "url": "/task10",
     "active": false,
     "hide_open_button": true,
-    "file": "osint/test.txt",
+    "author": "",
+    "author_url": ""
+  },
+  {
+    "id": 12,
+    "name": "test",
+    "category": "ОСИНТ",
+    "difficulty": "Среднее",
+    "description": "tttt",
+    "points": 100,
+    "flag": "oskolctf{ttt}",
+    "url": "",
+    "active": true,
+    "hide_open_button": true,
+    "author": "",
+    "author_url": ""
+  },
+  {
+    "id": 61,
+    "name": "Шифр Цез1аря",
+    "category": "Крипто",
+    "difficulty": "Лёгкое",
+    "description": "Один из древнейших шифров. Каждая буква сдвинута на фиксированное число позиций в алфавите. Попробуй найти ключ и расшифровать сообщение.",
+    "points": 150,
+    "flag": "oskolctf{caesar_cipher_placeholder_flag_6}",
+    "url": "/task6",
+    "active": true,
+    "hide_open_button": false,
+    "author": "",
+    "author_url": ""
+  },
+  {
+    "id": 62,
+    "name": "тестик",
+    "category": "Pwn",
+    "difficulty": "Среднее",
+    "description": "",
+    "points": 100,
+    "flag": "тест",
+    "url": "",
+    "active": true,
+    "hide_open_button": true,
+    "author": "",
+    "author_url": ""
+  },
+  {
+    "id": 63,
+    "name": "231",
+    "category": "Разное",
+    "difficulty": "Среднее",
+    "description": "321",
+    "points": 100,
+    "flag": "321",
+    "url": "",
+    "active": true,
+    "hide_open_button": false,
     "author": "",
     "author_url": ""
   }
