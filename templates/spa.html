@@ -1406,6 +1406,8 @@
         const popForm = ref(false);
         const activeModal = ref(null);
         const activeCat = ref('all');
+        const modalFlag = ref('');
+        const modalShake = ref(false);
         let timer = null;
 
         const solvedCount = computed(() => tasks.value.filter(t => t.solved).length);
@@ -1465,8 +1467,31 @@
           }
         }
 
+        async function submitModalFlag(e) {
+          if (submitting.value || !modalFlag.value.trim()) return;
+          submitting.value = true;
+          const btn = e.submitter;
+          const res = await fetch('/api/submit', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ flag: modalFlag.value.trim(), csrf: store.csrf }),
+          }).then(r => r.json()).catch(() => ({ ok: false, error: '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438' }));
+          submitting.value = false;
+          await store.refreshCsrf();
+          if (res.ok) {
+            store.toast(res.message, 'ok');
+            modalFlag.value = '';
+            launchConfetti(btn);
+            await loadBoard();
+            closeModal();
+          } else {
+            store.toast(res.error, res.category === 'info' ? 'info' : 'err');
+            modalShake.value = true;
+            setTimeout(() => modalShake.value = false, 500);
+          }
+        }
+
         function openModal(task) { activeModal.value = task; document.body.style.overflow = 'hidden'; }
-        function closeModal() { activeModal.value = null; document.body.style.overflow = ''; }
+        function closeModal() { activeModal.value = null; document.body.style.overflow = ''; modalFlag.value = ''; }
 
         async function logout() { await store.logout(); router.push('/'); }
 
@@ -1490,7 +1515,8 @@
           store, router, flag, tasks, board, pageLoad, submitting, shakeForm, popForm,
           activeModal, activeCat, solvedCount, totalCount, myScore, progress,
           categories, filteredTasks, catCount, catClass, catIcon, diffClass,
-          submitFlag, logout, openModal, closeModal
+          submitFlag, logout, openModal, closeModal,
+          modalFlag, modalShake, submitModalFlag
         };
       },
       template: `
@@ -1698,6 +1724,18 @@
               <p class="spa-modal-section-label">📋 Описание задания</p>
               <p class="spa-modal-desc">{{ activeModal.description }}</p>
             </div>
+            <template v-if="activeModal.has_file">
+              <div class="spa-modal-divider"></div>
+              <div>
+                <p class="spa-modal-section-label">Файл задания</p>
+                <a :href="'/api/task-file/' + activeModal.id"
+                  style="display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:12px;background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.32);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;transition:.15s;"
+                  onmouseover="this.style.background='rgba(99,102,241,.25)'"
+                  onmouseout="this.style.background='rgba(99,102,241,.14)'">
+                  Скачать файл
+                </a>
+              </div>
+            </template>
             <div class="spa-modal-divider"></div>
             <div class="spa-modal-stats">
               <div class="spa-modal-stat">
@@ -1719,11 +1757,22 @@
             </div>
           </div>
 
+          <div style="padding:0 22px 4px;">
+            <div class="spa-modal-divider" style="margin:0 0 14px;"></div>
+            <form @submit.prevent="submitModalFlag($event)" :class="{'shake': modalShake}" style="display:flex;gap:8px;">
+              <input class="dark-input" v-model="modalFlag" placeholder="oskolctf{...}" autocomplete="off" spellcheck="false" style="flex:1;padding:10px 13px;font-size:13px;">
+              <button type="submit" class="btn btn-primary" :disabled="submitting" style="white-space:nowrap;padding:10px 18px;">
+                <span v-if="submitting" class="spin">⟳</span>
+                <span v-else>Сдать</span>
+              </button>
+            </form>
+          </div>
+
           <div class="spa-modal-footer">
-            <a class="btn btn-primary" :href="activeModal.link" target="_blank" rel="noopener" @click="closeModal()">
+            <a v-if="!activeModal.hide_open_button" class="btn btn-primary" :href="activeModal.link" target="_blank" rel="noopener" @click="closeModal()">
               Открыть задание
             </a>
-            <button class="btn btn-ghost" @click="closeModal()">Закрыть</button>
+            <button class="btn btn-ghost" :style="activeModal.hide_open_button ? 'flex:1' : ''" @click="closeModal()">Закрыть</button>
           </div>
         </div>
       </div>

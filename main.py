@@ -31,11 +31,10 @@ def get_task_list() -> list:
 
 def build_score_sql(task_list: list):
     """Строит динамический CASE SQL и кортеж параметров для подсчёта очков по таблице лидеров."""
-    active = [t for t in task_list if t.get("active", True)]
-    if not active:
+    if not task_list:
         return "0", ()
-    parts = " ".join(f"WHEN {int(t['id'])} THEN ?" for t in active)
-    return f"CASE s.task_id {parts} ELSE 0 END", tuple(t["points"] for t in active)
+    parts = " ".join(f"WHEN {int(t['id'])} THEN ?" for t in task_list)
+    return f"CASE s.task_id {parts} ELSE 0 END", tuple(t["points"] for t in task_list)
 
 DB_PATH = os.path.join(os.getcwd(), "ctf.sqlite3")
 
@@ -185,6 +184,32 @@ async def task4():
     return response
 
 
+TASK_FILES_DIR = os.path.join(os.getcwd(), "task")
+
+
+@app.route("/api/task-file/<int:task_id>")
+def api_task_file(task_id: int):
+    """Отдаёт файл задачи, указанный в поле 'file' tasks.json."""
+    if not flask.session.get("uid"):
+        return flask.jsonify({"ok": False, "error": "Not authenticated"}), 401
+    task_meta = next((t for t in get_task_list() if t["id"] == task_id), None)
+    if not task_meta:
+        flask.abort(404)
+    rel_path = (task_meta.get("file") or "").strip()
+    if not rel_path:
+        flask.abort(404)
+    # Защита от path traversal: нормализуем путь и проверяем, что он внутри TASK_FILES_DIR
+    safe_base = os.path.realpath(TASK_FILES_DIR)
+    target = os.path.realpath(os.path.join(TASK_FILES_DIR, rel_path))
+    if not target.startswith(safe_base + os.sep) and target != safe_base:
+        flask.abort(403)
+    if not os.path.isfile(target):
+        flask.abort(404)
+    directory = os.path.dirname(target)
+    filename = os.path.basename(target)
+    return flask.send_from_directory(directory, filename, as_attachment=True)
+
+
 # ---------- New routes: register/login/logout/board/submit ----------
 
 # ========== JSON API для Vue SPA ==========
@@ -300,6 +325,8 @@ def api_board():
             "solve_count": solve_counts.get(tid, 0),
             "link": t.get("url", f"/task{tid}"),
             "active": t.get("active", True),
+            "has_file": bool((t.get("file") or "").strip()),
+            "hide_open_button": bool(t.get("hide_open_button", False)),
         })
     leaderboard = [
         {"username": r["username"], "score": r["score"], "solved_count": r["solved_count"]}
