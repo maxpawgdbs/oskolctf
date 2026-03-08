@@ -269,8 +269,10 @@ def api_register():
         return flask.jsonify({"ok": False, "error": "CSRF check failed"}), 400
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    if len(username) < 3 or len(password) < 6:
-        return flask.jsonify({"ok": False, "error": "Username ≥ 3 символа, пароль ≥ 6 символов"})
+    if len(username) < 3 or len(username) > 16:
+        return flask.jsonify({"ok": False, "error": "Username: от 3 до 16 символов"})
+    if len(password) < 6 or len(password) > 16:
+        return flask.jsonify({"ok": False, "error": "Пароль: от 6 до 16 символов"})
     conn = db()
     try:
         conn.execute(
