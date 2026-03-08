@@ -665,6 +665,115 @@ async def task4():
 
 ## 🚀 Развёртывание в продакшене
 
+### Автоматический деплой (рекомендуется)
+
+Проект включает скрипты для автоматического развёртывания на VPS (Debian/Ubuntu).
+
+#### 📁 Структура скриптов
+
+```
+deploy/
+├── install.sh          # Установка с нуля (Python venv + Gunicorn + Nginx)
+├── update.sh           # Обновление файлов и перезапуск сервиса
+├── docker-install.sh   # Установка через Docker + Docker Compose
+├── docker-update.sh    # Пересборка образа и перезапуск контейнеров
+└── nginx.conf          # Конфигурация Nginx для Docker
+```
+
+---
+
+#### 🔹 Вариант 1: Классическая установка (Python venv)
+
+**Требования:**
+- VPS с Debian/Ubuntu
+- root-доступ
+
+**Установка:**
+```bash
+# Склонируйте репозиторий
+git clone <repository-url> oskolctf
+cd oskolctf
+
+# Запустите установщик от root
+sudo bash deploy/install.sh
+```
+
+**Что делает скрипт:**
+1. Обновляет пакеты и устанавливает Python, pip, Nginx
+2. Копирует проект в `/opt/oskolctf`
+3. Создаёт виртуальное окружение и устанавливает зависимости
+4. Генерирует `SECRET_KEY` и сохраняет в `.env`
+5. Создаёт systemd-сервис `oskolctf` с Gunicorn (2 worker'а)
+6. Настраивает Nginx как reverse proxy на порт 80
+
+**Обновление:**
+```bash
+# Внесите изменения в код и закоммитьте
+# На сервере выполните:
+sudo bash deploy/update.sh
+```
+
+**Управление сервисом:**
+```bash
+systemctl status oskolctf      # Статус
+systemctl restart oskolctf     # Перезапуск
+systemctl stop oskolctf        # Остановка
+journalctl -u oskolctf -f      # Логи в реальном времени
+```
+
+**Логи:**
+- Access: `/var/log/oskolctf-access.log`
+- Error: `/var/log/oskolctf-error.log`
+
+---
+
+#### 🔹 Вариант 2: Docker-установка
+
+**Требования:**
+- VPS с Debian/Ubuntu
+- root-доступ
+
+**Установка:**
+```bash
+# Склонируйте репозиторий
+git clone <repository-url> oskolctf
+cd oskolctf
+
+# Запустите Docker-установщик от root
+sudo bash deploy/docker-install.sh
+```
+
+**Что делает скрипт:**
+1. Устанавливает Docker и Docker Compose (если не установлены)
+2. Генерирует `SECRET_KEY` в `.env`
+3. Создаёт директорию `data/` для хранения БД
+4. Собирает Docker-образ и запускает контейнеры (app + nginx)
+
+**Обновление:**
+```bash
+sudo bash deploy/docker-update.sh
+```
+
+**Управление:**
+```bash
+docker compose ps              # Статус контейнеров
+docker compose logs -f         # Логи в реальном времени
+docker compose restart         # Перезапуск
+docker compose down            # Остановка
+docker compose up -d --build   # Пересборка и запуск
+```
+
+**Структура томов:**
+| Том | Описание |
+|-----|----------|
+| `./data` | SQLite база (сохраняется при пересборке) |
+| `./tasks.json` | Конфиг задач (монтируется read-only) |
+| `./task` | Файлы заданий (монтируется read-only) |
+
+---
+
+### Ручная настройка
+
 ### 1. Настройка SECRET_KEY
 
 **Никогда не используйте дефолтное значение!**
