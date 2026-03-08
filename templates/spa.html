@@ -1803,6 +1803,10 @@
             <div>
               <p class="spa-modal-section-label">📋 Описание задания</p>
               <p class="spa-modal-desc">{{ activeModal.description }}</p>
+              <p v-if="activeModal.author" style="margin:6px 0 0;font-size:12px;color:#6b7280;">✍️ Автор:
+                <a v-if="activeModal.author_url" :href="activeModal.author_url" target="_blank" rel="noopener noreferrer" style="color:#a5b4fc;font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ activeModal.author }}</a>
+                <span v-else style="color:#a5b4fc;font-weight:600;">{{ activeModal.author }}</span>
+              </p>
             </div>
             <template v-if="activeModal.has_file">
               <div class="spa-modal-divider"></div>

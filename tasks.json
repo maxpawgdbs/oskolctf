@@ -8,7 +8,9 @@
     "points": 100,
     "flag": "oskolctf{task0_it_is_good_start}",
     "url": "/task0",
-    "active": true
+    "active": true,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 1,
@@ -19,7 +21,9 @@
     "points": 150,
     "flag": "oskolctf{hahaha_really_my_first_ctf}",
     "url": "/task1",
-    "active": true
+    "active": true,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 2,
@@ -30,7 +34,9 @@
     "points": 150,
     "flag": "oskolctf{ti_uzhe_umniy_esli_reshil_eto}",
     "url": "/task2",
-    "active": true
+    "active": true,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 3,
@@ -41,7 +47,9 @@
     "points": 200,
     "flag": "oskolctf{xorg_worship_zhdet_tebya}",
     "url": "/task3",
-    "active": true
+    "active": true,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 4,
@@ -52,7 +60,9 @@
     "points": 250,
     "flag": "oskolctf{moya_lubimaya_taska_posle_labirinta}",
     "url": "/task4",
-    "active": true
+    "active": true,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 5,
@@ -64,7 +74,9 @@
     "flag": "oskolctf{oskolctf}",
     "url": "/task5",
     "active": true,
-    "hide_open_button": true
+    "hide_open_button": true,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 6,
@@ -75,7 +87,9 @@
     "points": 150,
     "flag": "oskolctf{caesar_cipher_placeholder_flag_6}",
     "url": "/task6",
-    "active": false
+    "active": false,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 7,
@@ -86,7 +100,9 @@
     "points": 200,
     "flag": "oskolctf{forensics_lost_file_placeholder_7}",
     "url": "/task7",
-    "active": false
+    "active": false,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 8,
@@ -97,7 +113,9 @@
     "points": 250,
     "flag": "oskolctf{crackme_binary_placeholder_flag_8}",
     "url": "/task8",
-    "active": false
+    "active": false,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 9,
@@ -108,7 +126,9 @@
     "points": 301,
     "flag": "oskolctf{stack_bof_pwn_placeholder_flag_9}",
     "url": "/task9",
-    "active": false
+    "active": false,
+    "author": "",
+    "author_url": ""
   },
   {
     "id": 10,
@@ -121,6 +141,8 @@
     "url": "/task10",
     "active": false,
     "hide_open_button": true,
-    "file": "osint/test.txt"
+    "file": "osint/test.txt",
+    "author": "",
+    "author_url": ""
   }
 ]
