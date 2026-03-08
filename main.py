@@ -8,6 +8,16 @@ import flask
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
+# Загружаем .env если он есть (для продакшена на VPS)
+_env_path = os.path.join(os.getcwd(), ".env")
+if os.path.isfile(_env_path):
+    with open(_env_path, encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 app = flask.Flask(
     __name__,
     template_folder=os.path.join(os.getcwd(), "templates"),
@@ -36,7 +46,10 @@ def build_score_sql(task_list: list):
     parts = " ".join(f"WHEN {int(t['id'])} THEN ?" for t in task_list)
     return f"CASE s.task_id {parts} ELSE 0 END", tuple(t["points"] for t in task_list)
 
-DB_PATH = os.path.join(os.getcwd(), "ctf.sqlite3")
+DB_PATH = os.environ.get(
+    "DB_PATH",
+    "/data/ctf.sqlite3" if os.path.isdir("/data") else os.path.join(os.getcwd(), "ctf.sqlite3")
+)
 
 
 # ---------- DB helpers ----------

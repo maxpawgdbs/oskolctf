@@ -1,0 +1,12 @@
+.git
+.venv
+.vscode
+__pycache__
+*.pyc
+*.pyo
+*.sqlite3
+*.db
+.env
+data/
+deploy/install.sh
+deploy/update.sh
