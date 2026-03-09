@@ -342,6 +342,8 @@ def api_board():
             "active": t.get("active", True),
             "has_file": bool((t.get("file") or "").strip()),
             "hide_open_button": bool(t.get("hide_open_button", False)),
+            "author": t.get("author", ""),
+            "author_url": t.get("author_url", ""),
         })
     leaderboard = [
         {"username": r["username"], "score": r["score"], "solved_count": r["solved_count"]}

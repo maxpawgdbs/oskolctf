@@ -9,12 +9,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Исходники
 COPY . .
 
-# Папка для SQLite базы (монтируется как volume)
-RUN mkdir -p /data && \
-    # Если база уже есть в образе — переносим в /data (первый запуск)
-    if [ -f /app/ctf.sqlite3 ]; then mv /app/ctf.sqlite3 /data/ctf.sqlite3; fi
+# Папки для данных и медиа
+RUN mkdir -p /data /app/media
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8005
 
-CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:8005", \
-     "--access-logfile", "-", "--error-logfile", "-", "main:app"]
+ENTRYPOINT ["/entrypoint.sh"]

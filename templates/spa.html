@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OSKOLCTF</title>
+  <title>Этика взлома</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="/css/ui.css">
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -1028,6 +1028,659 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* ── Admin Page ── */
+    .admin-view {
+      display: flex;
+      min-height: 100vh;
+      background: #0b0f17;
+      color: var(--textOnDark);
+    }
+
+    .adm-sidebar {
+      width: 230px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, .04);
+      border-right: 1px solid rgba(255, 255, 255, .08);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .adm-brand {
+      padding: 24px 20px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .adm-brand .logo {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      color: #a5b4fc;
+    }
+
+    .adm-brand .logo span {
+      color: var(--textOnDark);
+    }
+
+    .adm-brand .sub {
+      font-size: 11px;
+      color: rgba(229, 231, 235, .5);
+      font-weight: 600;
+      margin-top: 3px;
+    }
+
+    .adm-nav-section {
+      padding: 14px 12px 4px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      color: rgba(229, 231, 235, .38);
+      text-transform: uppercase;
+    }
+
+    .adm-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      margin: 2px 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(229, 231, 235, .72);
+      transition: .14s ease;
+      user-select: none;
+    }
+
+    .adm-nav-item:hover {
+      background: rgba(255, 255, 255, .06);
+      color: var(--textOnDark);
+    }
+
+    .adm-nav-item.active {
+      background: rgba(99, 102, 241, .18);
+      color: #a5b4fc;
+    }
+
+    .adm-nav-item .icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .adm-footer {
+      margin-top: auto;
+      padding: 14px 12px;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .adm-back-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(229, 231, 235, .55);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 8px;
+      transition: .14s ease;
+    }
+
+    .adm-back-link:hover {
+      background: rgba(255, 255, 255, .06);
+      color: var(--textOnDark);
+      text-decoration: none;
+    }
+
+    .adm-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .adm-topbar {
+      padding: 16px 28px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .025);
+      backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .adm-topbar .page-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    .adm-topbar .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(229, 231, 235, .72);
+      background: rgba(255, 255, 255, .07);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 999px;
+      padding: 6px 12px;
+    }
+
+    .adm-topbar .user-chip img {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      object-fit: cover;
+    }
+
+    .adm-content {
+      padding: 28px;
+      flex: 1;
+    }
+
+    .adm-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .adm-stat-card {
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+
+    .adm-stat-card .lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(229, 231, 235, .50);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+
+    .adm-stat-card .val {
+      font-size: 28px;
+      font-weight: 900;
+      margin-top: 4px;
+      letter-spacing: -.03em;
+    }
+
+    .adm-stat-card .val.indigo {
+      color: #a5b4fc;
+    }
+
+    .adm-stat-card .val.green {
+      color: #4ade80;
+    }
+
+    .adm-stat-card .val.yellow {
+      color: #fbbf24;
+    }
+
+    .adm-card {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 0;
+    }
+
+    .adm-card-h {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .adm-card-title {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .adm-card-b {
+      padding: 16px 18px;
+    }
+
+    .adm-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .adm-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 800;
+      color: rgba(229, 231, 235, .45);
+      padding: 0 10px 10px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .adm-table td {
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+      color: var(--textOnDark);
+      vertical-align: middle;
+    }
+
+    .adm-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .adm-table tr:hover td {
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .adm-badge-green {
+      background: rgba(34, 197, 94, .14);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, .25);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .adm-badge-red {
+      background: rgba(239, 68, 68, .14);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, .25);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .adm-badge-indigo {
+      background: rgba(99, 102, 241, .14);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, .25);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .adm-badge-gray {
+      background: rgba(255, 255, 255, .07);
+      color: rgba(229, 231, 235, .6);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .adm-btn-sm {
+      border: 0;
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .14s ease;
+      font-family: inherit;
+    }
+
+    .adm-btn-sm.primary {
+      background: rgba(99, 102, 241, .25);
+      color: #a5b4fc;
+    }
+
+    .adm-btn-sm.primary:hover {
+      background: rgba(99, 102, 241, .40);
+    }
+
+    .adm-btn-sm.danger {
+      background: rgba(239, 68, 68, .15);
+      color: #f87171;
+    }
+
+    .adm-btn-sm.danger:hover {
+      background: rgba(239, 68, 68, .30);
+    }
+
+    .adm-btn-sm.success {
+      background: rgba(34, 197, 94, .15);
+      color: #4ade80;
+    }
+
+    .adm-btn-sm.success:hover {
+      background: rgba(34, 197, 94, .28);
+    }
+
+    .adm-btn-sm.gray {
+      background: rgba(255, 255, 255, .07);
+      color: rgba(229, 231, 235, .75);
+    }
+
+    .adm-btn-sm.gray:hover {
+      background: rgba(255, 255, 255, .13);
+    }
+
+    .adm-btn-sm:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .adm-btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .14s ease;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .adm-btn.primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 8px 22px rgba(99, 102, 241, .28);
+    }
+
+    .adm-btn.primary:hover {
+      background: var(--primary2);
+      transform: translateY(-1px);
+    }
+
+    .adm-btn.danger {
+      background: rgba(239, 68, 68, .18);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, .28);
+    }
+
+    .adm-btn.danger:hover {
+      background: rgba(239, 68, 68, .32);
+    }
+
+    .adm-btn.gray {
+      background: rgba(255, 255, 255, .07);
+      color: var(--textOnDark);
+      border: 1px solid rgba(255, 255, 255, .12);
+    }
+
+    .adm-btn.gray:hover {
+      background: rgba(255, 255, 255, .13);
+    }
+
+    .adm-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .adm-input {
+      background: rgba(255, 255, 255, .07);
+      border: 1px solid rgba(255, 255, 255, .13);
+      color: var(--textOnDark);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      outline: none;
+      transition: .14s ease;
+      width: 100%;
+    }
+
+    .adm-input:focus {
+      border-color: rgba(99, 102, 241, .55);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+    }
+
+    .adm-input::placeholder {
+      color: rgba(229, 231, 235, .35);
+    }
+
+    .adm-input-sm {
+      padding: 5px 9px;
+      font-size: 12px;
+      border-radius: 7px;
+      width: 80px;
+    }
+
+    textarea.adm-input {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .adm-toggle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      gap: 8px;
+    }
+
+    .adm-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .adm-track {
+      width: 34px;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .14);
+      transition: .2s ease;
+      position: relative;
+    }
+
+    .adm-track::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(229, 231, 235, .6);
+      top: 3px;
+      left: 3px;
+      transition: .2s ease;
+    }
+
+    .adm-toggle input:checked+.adm-track {
+      background: rgba(99, 102, 241, .55);
+    }
+
+    .adm-toggle input:checked+.adm-track::after {
+      transform: translateX(16px);
+      background: #a5b4fc;
+    }
+
+    .adm-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, .14);
+      border-top-color: #a5b4fc;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    .adm-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .65);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .adm-modal-box {
+      background: #131924;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 18px;
+      padding: 28px;
+      max-width: 420px;
+      width: calc(100% - 40px);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+    }
+
+    .adm-modal-box.wide {
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .adm-modal-box h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .adm-modal-box p {
+      margin: 0 0 22px;
+      color: rgba(229, 231, 235, .65);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .adm-modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .adm-section-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .adm-section-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .adm-avatar-xs {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      object-fit: cover;
+    }
+
+    .adm-avatar-def {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, .25);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: #a5b4fc;
+      flex-shrink: 0;
+    }
+
+    .adm-import-zone {
+      border: 2px dashed rgba(99, 102, 241, .30);
+      border-radius: 14px;
+      padding: 28px;
+      text-align: center;
+      color: rgba(229, 231, 235, .5);
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .adm-import-zone:hover {
+      border-color: rgba(99, 102, 241, .6);
+      background: rgba(99, 102, 241, .05);
+    }
+
+    .adm-search-wrap {
+      position: relative;
+    }
+
+    .adm-search-wrap .adm-input {
+      padding-left: 32px;
+    }
+
+    .adm-search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(229, 231, 235, .4);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .adm-quick-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .adm-qa-card {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: .14s ease;
+    }
+
+    .adm-qa-card:hover {
+      background: rgba(255, 255, 255, .09);
+      border-color: rgba(99, 102, 241, .3);
+    }
+
+    .adm-qa-icon {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .adm-qa-title {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .adm-qa-desc {
+      font-size: 11px;
+      color: rgba(229, 231, 235, .5);
+      margin-top: 2px;
+    }
+
+    .adm-field-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(229, 231, 235, .5);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
   </style>
 </head>
 
@@ -1184,7 +1837,7 @@
           <div class="hero-left">
             <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.1);color:#a5b4fc;font-size:12px;font-weight:700;margin-bottom:22px;">
               <span style="width:6px;height:6px;border-radius:50%;background:#6366f1;box-shadow:0 0 8px #6366f1;animation:blink 2s ease infinite;"></span>
-              Capture The Flag · OSKOLCTF
+              Захват флага · Этика взлома
             </div>
             <h1 class="hero-title" style="color:var(--textOnDark);">
               Взломай.<br>Захвати.<br><span class="grad-text">Победи.</span>
@@ -1326,7 +1979,7 @@
       template: `
     <div class="auth">
       <div class="auth-panel">
-        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--textOnDark);">OSKOLCTF</div>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--textOnDark);">Этика взлома</div>
 
         <div class="auth-card">
           <mac-bar title="LOGIN" />
@@ -1423,7 +2076,7 @@
       template: `
     <div class="auth">
       <div class="auth-panel">
-        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--textOnDark);">OSKOLCTF</div>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--textOnDark);">Этика взлома</div>
 
         <div class="auth-card">
           <mac-bar title="REGISTER" />
@@ -1607,13 +2260,15 @@
         <div class="container">
           <div class="topbar-inner">
             <div style="display:flex;flex-direction:column;gap:3px;">
-              <span style="font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--textOnDark);">OSKOLCTF</span>
+              <span style="font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--textOnDark);">Этика взлома</span>
               <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);font-size:12px;font-weight:800;color:var(--textOnDark);">
                 👤 {{ store.user?.username }}
               </div>
+              <router-link to="/profile" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">Профиль</router-link>
+              <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
                 Выйти
               </button>
@@ -1755,7 +2410,8 @@
                   <tbody>
                     <tr v-for="(r, i) in board" :key="r.username"
                       class="lb-row" :class="r.username === store.user?.username ? 'lb-me' : ''"
-                      :style="{animationDelay:(i*0.04)+'s',animation:'fadeSlideIn .4s ease both'}">
+                      :style="{animationDelay:(i*0.04)+'s',animation:'fadeSlideIn .4s ease both',cursor:'pointer'}"
+                      @click="router.push('/profile/' + r.username)">
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
                         <span v-if="i<3" style="font-size:18px;line-height:1;">{{ i===0?'🥇':i===1?'🥈':'🥉' }}</span>
                         <span v-else class="rank-badge">{{ i+1 }}</span>
@@ -1803,6 +2459,10 @@
             <div>
               <p class="spa-modal-section-label">📋 Описание задания</p>
               <p class="spa-modal-desc">{{ activeModal.description }}</p>
+              <p v-if="activeModal.author" style="margin:6px 0 0;font-size:12px;color:#6b7280;">✍️ Автор:
+                <a v-if="activeModal.author_url" :href="activeModal.author_url" target="_blank" rel="noopener noreferrer" style="color:#a5b4fc;font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ activeModal.author }}</a>
+                <span v-else style="color:#a5b4fc;font-weight:600;">{{ activeModal.author }}</span>
+              </p>
             </div>
             <template v-if="activeModal.has_file">
               <div class="spa-modal-divider"></div>
@@ -1861,6 +2521,593 @@
   `,
     };
 
+    /* ─────────────────── PROFILE PAGE (my) ─────────────────── */
+    const ProfilePage = {
+      setup() {
+        const router = useRouter();
+        const profile = ref(null);
+        const loading = ref(true);
+        const editMode = ref(false);
+        const editName = ref('');
+        const editBio = ref('');
+        const pwMode = ref(false);
+        const oldPw = ref('');
+        const newPw = ref('');
+        const saving = ref(false);
+        const fileInput = ref(null);
+
+        async function loadProfile() {
+          if (!store.user) {
+            const me = await fetch('/api/me').then(r => r.json()).catch(() => ({ user: null }));
+            store.user = me.user;
+          }
+          if (!store.user) { router.push('/login'); return; }
+          const r = await fetch('/api/profile/' + store.user.username).then(r => r.json()).catch(() => null);
+          if (r?.ok) {
+            profile.value = r.profile;
+            editName.value = r.profile.display_name || '';
+            editBio.value = r.profile.bio || '';
+          }
+          loading.value = false;
+        }
+
+        async function saveProfile() {
+          saving.value = true;
+          const r = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
+            body: JSON.stringify({ display_name: editName.value, bio: editBio.value }),
+            credentials: 'same-origin',
+          }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+          saving.value = false;
+          if (r.ok) {
+            profile.value.display_name = r.display_name;
+            profile.value.bio = r.bio;
+            store.user.display_name = r.display_name;
+            store.user.avatar = r.avatar;
+            editMode.value = false;
+            store.toast('Профиль обновлён', 'ok');
+          } else {
+            store.toast(r.error, 'err');
+          }
+        }
+
+        async function uploadAvatar(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const fd = new FormData();
+          fd.append('avatar', file);
+          fd.append('display_name', editName.value || profile.value.display_name || '');
+          fd.append('bio', editBio.value || profile.value.bio || '');
+          const r = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': store.csrf },
+            body: fd,
+            credentials: 'same-origin',
+          }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+          if (r.ok) {
+            profile.value.avatar = r.avatar;
+            store.user.avatar = r.avatar;
+            store.toast('Аватар обновлён', 'ok');
+          } else {
+            store.toast(r.error || 'Ошибка загрузки', 'err');
+          }
+          e.target.value = '';
+        }
+
+        async function changePassword() {
+          if (!oldPw.value || !newPw.value) return;
+          saving.value = true;
+          const r = await fetch('/api/profile/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
+            body: JSON.stringify({ old_password: oldPw.value, new_password: newPw.value }),
+            credentials: 'same-origin',
+          }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+          saving.value = false;
+          if (r.ok) {
+            oldPw.value = ''; newPw.value = '';
+            pwMode.value = false;
+            store.toast('Пароль изменён', 'ok');
+          } else {
+            store.toast(r.error, 'err');
+          }
+        }
+
+        async function logout() { await store.logout(); router.push('/'); }
+
+        onMounted(loadProfile);
+
+        return {
+          store, router, profile, loading, editMode, editName, editBio,
+          pwMode, oldPw, newPw, saving, fileInput,
+          saveProfile, uploadAvatar, changePassword, logout
+        };
+      },
+      template: `
+    <div class="board-root">
+      <nav class="board-nav">
+        <div class="container">
+          <div class="topbar-inner">
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <span style="font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--textOnDark);">Этика взлома</span>
+              <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">← Борд</router-link>
+              <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
+              <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <div v-if="loading" style="display:flex;align-items:center;justify-content:center;gap:14px;padding:100px 0;color:var(--mutedOnDark);font-size:14px;">
+        <span class="spin" style="font-size:26px;">⟳</span> Загрузка...
+      </div>
+      <div v-else-if="profile" class="container" style="padding:32px 0 64px;">
+        <!-- Header -->
+        <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:28px;flex-wrap:wrap;">
+          <div style="position:relative;flex-shrink:0;">
+            <img v-if="profile.avatar" :src="profile.avatar" style="width:88px;height:88px;border-radius:999px;object-fit:cover;border:3px solid rgba(99,102,241,.4);" alt="">
+            <div v-else style="width:88px;height:88px;border-radius:999px;background:rgba(99,102,241,.2);border:3px solid rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;font-size:34px;color:#a5b4fc;font-weight:900;">{{ (profile.display_name||profile.username)[0].toUpperCase() }}</div>
+            <button @click="$refs.avatarInput.click()" title="Сменить аватар" style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;border-radius:999px;background:#6366f1;border:2px solid #0b0f17;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✎</button>
+            <input type="file" ref="avatarInput" accept="image/*" style="display:none" @change="uploadAvatar">
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--textOnDark);">{{ profile.display_name || profile.username }}</span>
+              <span v-if="profile.is_staff" style="font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;">👑 admin</span>
+            </div>
+            <div style="font-size:13px;color:var(--mutedOnDark);margin-bottom:8px;">@{{ profile.username }}  ·  На сайте с {{ profile.member_since?.slice(0,10) }}</div>
+            <div style="font-size:13px;color:var(--mutedOnDark);" v-if="profile.bio">{{ profile.bio }}</div>
+            <div style="display:flex;gap:18px;margin-top:10px;flex-wrap:wrap;">
+              <div style="font-size:13px;color:var(--textOnDark);"><b style="color:#a5b4fc;font-size:17px;">{{ profile.score }}</b> <span style="color:var(--mutedOnDark);">очков</span></div>
+              <div style="font-size:13px;color:var(--textOnDark);"><b style="color:#4ade80;font-size:17px;">{{ profile.solve_count }}</b> <span style="color:var(--mutedOnDark);">решено</span></div>
+            </div>
+          </div>
+          <button @click="editMode=!editMode" style="padding:8px 16px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">{{ editMode ? '× Отмена' : '✎ Редактировать' }}</button>
+        </div>
+
+        <!-- Edit form -->
+        <div v-if="editMode" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:20px;margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--textOnDark);">Редактирование профиля</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--mutedOnDark);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Отображаемое имя</div>
+              <input v-model="editName" maxlength="32" placeholder="Оставьте пустым — будет username" style="width:100%;padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:var(--textOnDark);font-size:13px;font-family:inherit;outline:none;">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--mutedOnDark);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">О себе</div>
+              <textarea v-model="editBio" maxlength="300" rows="3" placeholder="Кратко о себе…" style="width:100%;padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:var(--textOnDark);font-size:13px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+            </div>
+            <button @click="saveProfile" :disabled="saving" style="align-self:flex-start;padding:9px 20px;border-radius:10px;background:#6366f1;border:0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">{{ saving ? 'Сохраняю…' : '✓ Сохранить' }}</button>
+          </div>
+        </div>
+
+        <!-- Change password -->
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:16px 18px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" @click="pwMode=!pwMode">
+            <span style="font-size:13px;font-weight:700;color:var(--textOnDark);">🔑 Сменить пароль</span>
+            <span style="font-size:13px;color:var(--mutedOnDark);">{{ pwMode ? '▲' : '▼' }}</span>
+          </div>
+          <div v-if="pwMode" style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+            <input v-model="oldPw" type="password" placeholder="Текущий пароль" style="padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:var(--textOnDark);font-size:13px;font-family:inherit;outline:none;">
+            <input v-model="newPw" type="password" placeholder="Новый пароль (мин. 6 символов)" style="padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:var(--textOnDark);font-size:13px;font-family:inherit;outline:none;">
+            <button @click="changePassword" :disabled="saving||!oldPw||!newPw" style="align-self:flex-start;padding:9px 20px;border-radius:10px;background:#6366f1;border:0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">{{ saving ? 'Сохраняю…' : 'Изменить' }}</button>
+          </div>
+        </div>
+
+        <!-- Solved tasks -->
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">Решённые задания ({{ profile.solved_tasks?.length || 0 }})</div>
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;" v-if="profile.solved_tasks?.length">
+            <div v-for="t in profile.solved_tasks" :key="t.task_id" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">
+              <span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--mutedOnDark);font-weight:700;">{{ t.category }}</span>
+              <span style="flex:1;font-size:13px;font-weight:700;color:var(--textOnDark);">{{ t.name }}</span>
+              <span style="font-size:12px;font-weight:700;color:#a5b4fc;">+{{ t.points }}</span>
+            </div>
+          </div>
+          <div v-else style="padding:28px;text-align:center;font-size:13px;color:rgba(229,231,235,.35);">Нет решённых заданий</div>
+        </div>
+      </div>
+    </div>
+  `,
+    };
+
+    /* ─────────────────── PUBLIC PROFILE PAGE ─────────────────── */
+    const PublicProfilePage = {
+      setup() {
+        const router = useRouter();
+        const route = useRoute();
+        const profile = ref(null);
+        const loading = ref(true);
+        const notFound = ref(false);
+
+        async function loadProfile() {
+          if (!store.user) {
+            const me = await fetch('/api/me').then(r => r.json()).catch(() => ({ user: null }));
+            store.user = me.user;
+          }
+          if (!store.user) { router.push('/login'); return; }
+          const username = route.params.username;
+          // own profile redirect
+          if (store.user.username.toLowerCase() === username.toLowerCase()) {
+            router.replace('/profile'); return;
+          }
+          const r = await fetch('/api/profile/' + username).then(r => r.json()).catch(() => null);
+          if (r?.ok) { profile.value = r.profile; }
+          else { notFound.value = true; }
+          loading.value = false;
+        }
+
+        async function logout() { await store.logout(); router.push('/'); }
+        onMounted(loadProfile);
+        return { store, router, profile, loading, notFound, logout };
+      },
+      template: `
+    <div class="board-root">
+      <nav class="board-nav">
+        <div class="container">
+          <div class="topbar-inner">
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <span style="font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--textOnDark);">Этика взлома</span>
+              <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">← Борд</router-link>
+              <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
+              <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <div v-if="loading" style="display:flex;align-items:center;justify-content:center;gap:14px;padding:100px 0;color:var(--mutedOnDark);font-size:14px;">
+        <span class="spin" style="font-size:26px;">⟳</span> Загрузка...
+      </div>
+      <div v-else-if="notFound" class="container" style="padding:80px 0;text-align:center;color:var(--mutedOnDark);">
+        <div style="font-size:40px;margin-bottom:12px;">🔎</div>
+        <div style="font-size:18px;font-weight:800;color:var(--textOnDark);">Пользователь не найден</div>
+        <router-link to="/board" style="display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;">← На борд</router-link>
+      </div>
+      <div v-else-if="profile" class="container" style="padding:32px 0 64px;">
+        <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:28px;flex-wrap:wrap;">
+          <div>
+            <img v-if="profile.avatar" :src="profile.avatar" style="width:80px;height:80px;border-radius:999px;object-fit:cover;border:3px solid rgba(99,102,241,.4);" alt="">
+            <div v-else style="width:80px;height:80px;border-radius:999px;background:rgba(99,102,241,.2);border:3px solid rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;font-size:30px;color:#a5b4fc;font-weight:900;">{{ (profile.display_name||profile.username)[0].toUpperCase() }}</div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--textOnDark);">{{ profile.display_name || profile.username }}</span>
+              <span v-if="profile.is_staff" style="font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;">👑 admin</span>
+            </div>
+            <div style="font-size:13px;color:var(--mutedOnDark);margin-bottom:8px;">@{{ profile.username }}  ·  На сайте с {{ profile.member_since?.slice(0,10) }}</div>
+            <div style="font-size:13px;color:var(--mutedOnDark);" v-if="profile.bio">{{ profile.bio }}</div>
+            <div style="display:flex;gap:18px;margin-top:10px;flex-wrap:wrap;">
+              <div style="font-size:13px;color:var(--textOnDark);"><b style="color:#a5b4fc;font-size:17px;">{{ profile.score }}</b> <span style="color:var(--mutedOnDark);">очков</span></div>
+              <div style="font-size:13px;color:var(--textOnDark);"><b style="color:#4ade80;font-size:17px;">{{ profile.solve_count }}</b> <span style="color:var(--mutedOnDark);">решено</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">Решённые задания ({{ profile.solved_tasks?.length || 0 }})</div>
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;" v-if="profile.solved_tasks?.length">
+            <div v-for="t in profile.solved_tasks" :key="t.task_id" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">
+              <span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--mutedOnDark);font-weight:700;">{{ t.category }}</span>
+              <span style="flex:1;font-size:13px;font-weight:700;color:var(--textOnDark);">{{ t.name }}</span>
+              <span style="font-size:12px;font-weight:700;color:#a5b4fc;">+{{ t.points }}</span>
+            </div>
+          </div>
+          <div v-else style="padding:28px;text-align:center;font-size:13px;color:rgba(229,231,235,.35);">Нет решённых заданий</div>
+        </div>
+      </div>
+    </div>
+  `,
+    };
+
+    /* ─────────────────── ROUTER ─────────────────── */
+    const AdminPage = {
+      setup() {
+        const router = useRouter();
+        const page = ref('dashboard');
+        const me = ref(null);
+        const stats = reactive({});
+        const tasks = ref([]);
+        const users = ref([]);
+        const announcement = ref(null);
+        const announcementEdit = ref('');
+        const savingAnn = ref(false);
+        const tasksLoading = ref(false);
+        const usersLoading = ref(false);
+        const taskSearch = ref('');
+        const userSearch = ref('');
+        const importText = ref('');
+        const importing = ref(false);
+        const importResult = ref(null);
+        const modal = reactive({ show: false, title: '', text: '', action: () => { } });
+        const categories = ['Web', 'Разное', 'Крипто', 'Форензика', 'Реверс', 'Pwn', 'ОСИНТ'];
+        const difficulties = ['Очень лёгкое', 'Лёгкое', 'Среднее', 'Сложное', 'Очень сложное'];
+        const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
+        const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', f: emptyForm() });
+        const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки' };
+
+        function postJSON(url, body) {
+          return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf }, body: JSON.stringify(body), credentials: 'same-origin' });
+        }
+        async function loadMe() { const d = await fetch('/api/me').then(r => r.json()); if (d.user) me.value = d.user; }
+        async function loadStats() { const d = await fetch('/api/admin/stats').then(r => r.json()); if (d.ok) Object.assign(stats, d); }
+        async function loadAnnouncement() { const d = await fetch('/api/announcement').then(r => r.json()); announcement.value = d.text || ''; announcementEdit.value = d.text || ''; }
+        async function saveAnnouncement() {
+          savingAnn.value = true;
+          try { const d = await postJSON('/api/admin/set-announcement', { text: announcementEdit.value }).then(r => r.json()); if (d.ok) { announcement.value = d.text; store.toast('Баннер сохранён', 'ok'); } else store.toast(d.error || 'Ошибка', 'err'); }
+          finally { savingAnn.value = false; }
+        }
+        async function loadTasks() {
+          tasksLoading.value = true;
+          try { const d = await fetch('/api/admin/tasks-list').then(r => r.json()); if (d.ok) tasks.value = d.tasks.map(t => ({ ...t, _pts: t.points, flag: t.flag || '', url: t.url || '', hide_open_button: t.hide_open_button || false, author_url: t.author_url || '' })); }
+          finally { tasksLoading.value = false; }
+        }
+        function goTasks() { page.value = 'tasks'; if (tasks.value.length === 0) loadTasks(); }
+        const filteredTasks = computed(() => { const q = taskSearch.value.toLowerCase(); if (!q) return tasks.value; return tasks.value.filter(t => t.name.toLowerCase().includes(q) || t.category.toLowerCase().includes(q) || (t.author || '').toLowerCase().includes(q)); });
+        async function toggleTask(t) {
+          t.active = !t.active;
+          const d = await postJSON('/api/admin/tasks/' + t.id + '/save', { active: t.active }).then(r => r.json());
+          if (!d.ok) { t.active = !t.active; store.toast(d.error || 'Ошибка', 'err'); } else store.toast(t.active ? t.name + ' активировано' : t.name + ' скрыто', t.active ? 'ok' : 'info');
+        }
+        async function savePts(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/save', { points: t._pts }).then(r => r.json()); if (d.ok) store.toast(t.name + ': очки → ' + t._pts, 'ok'); else store.toast(d.error || 'Ошибка', 'err'); }
+        function openCreateTask() { taskModal.f = emptyForm(); taskModal.mode = 'create'; taskModal.err = ''; taskModal.show = true; }
+        function openEditTask(t) { taskModal.f = { task_id: t.id, name: t.name, category: t.category, difficulty: t.difficulty, description: t.description || '', points: t.points || t._pts, flag: t.flag || '', url: t.url || '', active: t.active, hide_open_button: t.hide_open_button || false, author: t.author || '', author_url: t.author_url || '' }; taskModal.mode = 'edit'; taskModal.err = ''; taskModal.show = true; }
+        async function saveTaskModal() {
+          const f = taskModal.f;
+          if (!f.name.trim()) { taskModal.err = 'Название обязательно'; return; }
+          if (!f.flag.trim()) { taskModal.err = 'Флаг обязателен'; return; }
+          taskModal.saving = true; taskModal.err = '';
+          try {
+            if (taskModal.mode === 'create') {
+              const d = await postJSON('/api/admin/tasks/create', { task_id: f.task_id ? parseInt(f.task_id) : undefined, name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
+              if (d.ok) { store.toast('Задание «' + d.name + '» создано (ID ' + d.task_id + ')', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
+            } else {
+              const d = await postJSON('/api/admin/tasks/' + f.task_id + '/save', { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
+              if (d.ok) { store.toast('Задание «' + f.name + '» сохранено', 'ok'); taskModal.show = false; const idx = tasks.value.findIndex(t => t.id === f.task_id); if (idx !== -1) Object.assign(tasks.value[idx], { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, _pts: f.points, active: f.active, author: f.author, flag: f.flag, url: f.url, author_url: f.author_url }); } else { taskModal.err = d.error || 'Ошибка'; }
+            }
+          } finally { taskModal.saving = false; }
+        }
+        function confirmDeleteTask(t) { modal.title = 'Удалить задание'; modal.text = 'Удалить задание «' + t.name + '» (ID ' + t.id + ')? Все решения будут также удалены.'; modal.action = () => deleteTask(t); modal.show = true; }
+        async function deleteTask(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/delete', {}).then(r => r.json()); if (d.ok) { tasks.value = tasks.value.filter(x => x.id !== t.id); store.toast('Задание «' + t.name + '» удалено', 'ok'); loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+        function confirmClearSolves(t) { modal.title = 'Сбросить решения'; modal.text = 'Удалить все ' + t.solve_count + ' решений задания «' + t.name + '»?'; modal.action = () => clearTaskSolves(t); modal.show = true; }
+        async function clearTaskSolves(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/clear-solves', {}).then(r => r.json()); if (d.ok) { t.solve_count = 0; store.toast('Решения «' + t.name + '» удалены', 'ok'); loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+        async function loadUsers() { usersLoading.value = true; try { const d = await fetch('/api/admin/users').then(r => r.json()); if (d.ok) users.value = d.users; } finally { usersLoading.value = false; } }
+        function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
+        const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
+        async function toggleStaff(u) { const d = await postJSON('/api/admin/users/' + u.id + '/toggle-staff', {}).then(r => r.json()); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка', 'err'); }
+        function onDrop(e) { const f = e.dataTransfer.files[0]; if (f) readFileAsText(f); }
+        function onFileSelect(e) { const f = e.target.files[0]; if (f) readFileAsText(f); }
+        function readFileAsText(file) { const r = new FileReader(); r.onload = ev => { importText.value = ev.target.result; }; r.readAsText(file); }
+        async function doImport() {
+          importing.value = true; importResult.value = null;
+          try { let parsed; try { parsed = JSON.parse(importText.value); } catch { store.toast('Неверный JSON', 'err'); return; } const d = await postJSON('/api/admin/sync-tasks', parsed).then(r => r.json()); importResult.value = d; if (d.ok) { store.toast('Создано: ' + d.created + ', обновлено: ' + d.updated, 'ok'); tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+          finally { importing.value = false; }
+        }
+        async function syncFromFile() { const d = await fetch('/api/admin/sync-tasks', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, credentials: 'same-origin' }).then(r => r.json()); if (d.ok) { store.toast('Синхронизировано: +' + d.created + ' / ~' + d.updated, 'ok'); tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+        function confirmResetAll() { modal.title = '☢ Ядерный сброс'; modal.text = 'Удалить ВСЕ решения у всех пользователей? Это действие необратимо.'; modal.action = resetAllSolves; modal.show = true; }
+        async function resetAllSolves() { const d = await postJSON('/api/admin/reset-solves', {}).then(r => r.json()); if (d.ok) { store.toast('Сброшено ' + d.deleted + ' решений', 'ok'); users.value = []; tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+        function goSettings() { page.value = 'settings'; loadAnnouncement(); }
+
+        onMounted(async () => {
+          if (!store.user) { const d = await fetch('/api/me').then(r => r.json()).catch(() => ({ user: null })); store.user = d.user; }
+          if (!store.user) { router.push('/login'); return; }
+          if (!store.user.is_staff) { router.push('/'); return; }
+          if (!store.csrf) await store.refreshCsrf();
+          await Promise.all([loadMe(), loadStats(), loadAnnouncement()]);
+        });
+
+        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement };
+      },
+      template: `
+  <div class="admin-view">
+    <aside class="adm-sidebar">
+      <div class="adm-brand">
+        <div class="logo"><span>CTF</span> Admin</div>
+        <div class="sub">Панель управления</div>
+      </div>
+      <div style="padding:8px 0;flex:1;">
+        <div class="adm-nav-section">Обзор</div>
+        <div class="adm-nav-item" :class="{active:page==='dashboard'}" @click="page='dashboard'"><span class="icon">⊞</span> Дашборд</div>
+        <div class="adm-nav-section">Контент</div>
+        <div class="adm-nav-item" :class="{active:page==='tasks'}" @click="goTasks"><span class="icon">⚑</span> Задания</div>
+        <div class="adm-nav-item" :class="{active:page==='create_task'}" @click="openCreateTask()"><span class="icon">＋</span> Создать задание</div>
+        <div class="adm-nav-item" :class="{active:page==='users'}" @click="goUsers"><span class="icon">⊙</span> Пользователи</div>
+        <div class="adm-nav-section">Система</div>
+        <div class="adm-nav-item" :class="{active:page==='import'}" @click="page='import';importText=''"><span class="icon">↑</span> Импорт JSON</div>
+        <div class="adm-nav-item" :class="{active:page==='settings'}" @click="goSettings"><span class="icon">⚙</span> Настройки</div>
+      </div>
+      <div class="adm-footer">
+        <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">← На сайт</a>
+      </div>
+    </aside>
+    <div class="adm-main">
+      <div class="adm-topbar">
+        <div class="page-title">{{ pageTitles[page] || 'Admin' }}</div>
+        <div class="user-chip" v-if="me"><img v-if="me.avatar" :src="me.avatar" alt=""><span v-else style="font-size:14px;">👤</span> {{ me.display_name || me.username }}</div>
+      </div>
+      <div class="adm-content">
+
+        <!-- DASHBOARD -->
+        <div v-if="page === 'dashboard'">
+          <div class="adm-stats-grid">
+            <div class="adm-stat-card"><div class="lbl">Пользователи</div><div class="val indigo">{{ stats.users ?? '…' }}</div></div>
+            <div class="adm-stat-card"><div class="lbl">Задания</div><div class="val indigo">{{ stats.tasks ?? '…' }}</div></div>
+            <div class="adm-stat-card"><div class="lbl">Активных</div><div class="val green">{{ stats.active_tasks ?? '…' }}</div></div>
+            <div class="adm-stat-card"><div class="lbl">Решений</div><div class="val yellow">{{ stats.solves ?? '…' }}</div></div>
+          </div>
+          <div class="adm-card" style="margin-bottom:20px;">
+            <div class="adm-card-h"><div class="adm-card-title">Быстрые действия</div></div>
+            <div class="adm-card-b">
+              <div class="adm-quick-actions">
+                <div class="adm-qa-card" @click="goTasks"><div class="adm-qa-icon">⚑</div><div class="adm-qa-title">Задания</div><div class="adm-qa-desc">Управление заданиями</div></div>
+                <div class="adm-qa-card" @click="goUsers"><div class="adm-qa-icon">⊙</div><div class="adm-qa-title">Пользователи</div><div class="adm-qa-desc">Список и права</div></div>
+                <div class="adm-qa-card" @click="syncFromFile"><div class="adm-qa-icon">↻</div><div class="adm-qa-title">Синх. tasks.json</div><div class="adm-qa-desc">Обновить из файла</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="adm-card" v-if="announcement !== null">
+            <div class="adm-card-h"><div class="adm-card-title">Текущий баннер</div><button class="adm-btn-sm gray" @click="goSettings">Изменить</button></div>
+            <div class="adm-card-b" style="font-size:13px;color:rgba(229,231,235,.75);"><span v-if="announcement">{{ announcement }}</span><span v-else style="color:rgba(229,231,235,.35);font-style:italic;">Нет баннера</span></div>
+          </div>
+        </div>
+
+        <!-- TASKS -->
+        <div v-else-if="page === 'tasks'">
+          <div class="adm-section-row">
+            <div class="adm-section-title">Задания ({{ tasks.length }})</div>
+            <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon">🔍</span><input class="adm-input" placeholder="Поиск…" v-model="taskSearch"></div>
+            <button class="adm-btn primary" @click="openCreateTask()">＋ Создать</button>
+            <button class="adm-btn gray" @click="page='import';importText=''">↑ Импорт</button>
+          </div>
+          <div class="adm-card" v-if="tasksLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
+          <div class="adm-card" v-else>
+            <table class="adm-table">
+              <thead><tr><th>ID</th><th>Название</th><th>Категория</th><th style="width:70px;">Очки</th><th>Решений</th><th>Статус</th><th>Действия</th></tr></thead>
+              <tbody>
+                <tr v-for="t in filteredTasks" :key="t.id">
+                  <td style="font-family:ui-monospace,monospace;font-size:12px;color:rgba(229,231,235,.45);">{{ t.id }}</td>
+                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div></td>
+                  <td><span class="adm-badge-gray">{{ t.category }}</span></td>
+                  <td><input class="adm-input adm-input-sm" type="number" min="0" v-model.number="t._pts" @change="savePts(t)"></td>
+                  <td><span class="adm-badge-indigo">{{ t.solve_count }}</span></td>
+                  <td><label class="adm-toggle"><input type="checkbox" :checked="t.active" @change="toggleTask(t)"><span class="adm-track"></span></label></td>
+                  <td style="white-space:nowrap;">
+                    <button class="adm-btn-sm primary" @click="openEditTask(t)" style="margin-right:4px;">✎</button>
+                    <button class="adm-btn-sm danger" :disabled="t.solve_count === 0" @click="confirmClearSolves(t)" title="Сбросить решения" style="margin-right:4px;">✕</button>
+                    <button class="adm-btn-sm danger" @click="confirmDeleteTask(t)" title="Удалить задание">🗑</button>
+                  </td>
+                </tr>
+                <tr v-if="filteredTasks.length === 0"><td colspan="7" style="text-align:center;color:rgba(229,231,235,.35);padding:28px;">Нет заданий</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- USERS -->
+        <div v-else-if="page === 'users'">
+          <div class="adm-section-row">
+            <div class="adm-section-title">Пользователи ({{ users.length }})</div>
+            <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon">🔍</span><input class="adm-input" placeholder="Поиск…" v-model="userSearch"></div>
+          </div>
+          <div class="adm-card" v-if="usersLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
+          <div class="adm-card" v-else>
+            <table class="adm-table">
+              <thead><tr><th>Пользователь</th><th>Очков</th><th>Решено</th><th>Дата</th><th>Роль</th><th>Действия</th></tr></thead>
+              <tbody>
+                <tr v-for="u in filteredUsers" :key="u.id">
+                  <td><div style="display:flex;align-items:center;gap:8px;"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:700;">{{ u.display_name || u.username }}</div><div style="font-size:11px;color:rgba(229,231,235,.4);">@{{ u.username }}</div></div></div></td>
+                  <td><span class="adm-badge-indigo">{{ u.score }}</span></td>
+                  <td style="color:rgba(229,231,235,.7);">{{ u.solved_count }}</td>
+                  <td style="font-family:ui-monospace,monospace;color:rgba(229,231,235,.4);font-size:11px;">{{ u.date_joined }}</td>
+                  <td><span v-if="u.is_superuser" class="adm-badge-red">superuser</span><span v-else-if="u.is_staff" class="adm-badge-indigo">admin</span><span v-else class="adm-badge-gray">user</span></td>
+                  <td><button v-if="!u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button><span v-else style="font-size:11px;color:rgba(229,231,235,.3);">—</span></td>
+                </tr>
+                <tr v-if="filteredUsers.length === 0"><td colspan="6" style="text-align:center;color:rgba(229,231,235,.35);padding:28px;">Нет пользователей</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- IMPORT -->
+        <div v-else-if="page === 'import'">
+          <div class="adm-section-row"><div class="adm-section-title">Импорт заданий из JSON</div></div>
+          <div class="adm-card" style="margin-bottom:18px;">
+            <div class="adm-card-h"><div class="adm-card-title">Загрузить файл</div></div>
+            <div class="adm-card-b">
+              <div class="adm-import-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop"><div style="font-size:32px;margin-bottom:8px;">📄</div><div style="font-size:13px;font-weight:700;">Перетащите tasks.json или кликните</div><div style="font-size:12px;margin-top:4px;">JSON-массив заданий</div></div>
+              <input type="file" ref="fileInput" accept=".json" style="display:none" @change="onFileSelect">
+            </div>
+          </div>
+          <div class="adm-card">
+            <div class="adm-card-h"><div class="adm-card-title">Или вставьте JSON вручную</div></div>
+            <div class="adm-card-b">
+              <textarea class="adm-input" style="min-height:220px;font-family:ui-monospace,monospace;font-size:12px;" placeholder='[{"task_id":1,"name":"...","flag":"..."}]' v-model="importText"></textarea>
+              <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+                <button class="adm-btn primary" :disabled="!importText.trim() || importing" @click="doImport"><span v-if="importing" class="adm-spinner"></span><span v-else>↑ Загрузить</span></button>
+                <button class="adm-btn gray" @click="syncFromFile">↻ Синх. из tasks.json</button>
+                <span v-if="importResult" style="font-size:12px;font-weight:600;" :style="{color: importResult.ok ? '#4ade80' : '#f87171'}">{{ importResult.ok ? 'Создано: ' + importResult.created + ', обновлено: ' + importResult.updated : importResult.error }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div v-else-if="page === 'settings'">
+          <div class="adm-section-row"><div class="adm-section-title">Настройки</div></div>
+          <div class="adm-card" style="margin-bottom:20px;">
+            <div class="adm-card-h"><div class="adm-card-title">📢 Баннер объявления</div></div>
+            <div class="adm-card-b">
+              <div style="margin-bottom:10px;font-size:12px;color:rgba(229,231,235,.55);">Отображается всем авторизованным пользователям на доске. Оставьте пустым, чтобы убрать.</div>
+              <textarea class="adm-input" style="min-height:80px;" placeholder="Текст объявления…" v-model="announcementEdit"></textarea>
+              <div style="display:flex;gap:10px;margin-top:10px;">
+                <button class="adm-btn primary" @click="saveAnnouncement" :disabled="savingAnn"><span v-if="savingAnn" class="adm-spinner"></span><span v-else>✓ Сохранить</span></button>
+                <button class="adm-btn gray" @click="announcementEdit = ''; saveAnnouncement()">✕ Убрать</button>
+              </div>
+            </div>
+          </div>
+          <div class="adm-card">
+            <div class="adm-card-h"><div class="adm-card-title">☢ Опасная зона</div></div>
+            <div class="adm-card-b">
+              <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.18);border-radius:10px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                <div><div style="font-size:13px;font-weight:800;color:#f87171;">Сбросить ВСЕ решения</div><div style="font-size:12px;color:rgba(239,68,68,.65);margin-top:3px;">Удалит все записи о решениях у всех пользователей. Необратимо.</div></div>
+                <button class="adm-btn danger" @click="confirmResetAll">☢ Сбросить всё</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="adm-modal-overlay" v-if="modal.show" @click.self="modal.show=false">
+      <div class="adm-modal-box">
+        <h3>{{ modal.title }}</h3>
+        <p>{{ modal.text }}</p>
+        <div class="adm-modal-actions">
+          <button class="adm-btn gray" @click="modal.show=false">Отмена</button>
+          <button class="adm-btn danger" @click="modal.action(); modal.show=false">Подтвердить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task Create/Edit Modal -->
+    <div class="adm-modal-overlay" v-if="taskModal.show" @click.self="taskModal.show=false" style="z-index:1010;">
+      <div class="adm-modal-box wide">
+        <h3 style="margin:0 0 18px;">{{ taskModal.mode === 'create' ? '＋ Создать задание' : '✎ Редактировать задание' }}</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div v-if="taskModal.mode === 'create'"><div class="adm-field-lbl">ID (авто если пусто)</div><input class="adm-input" v-model="taskModal.f.task_id" type="number" min="1" placeholder="Авто"></div>
+          <div v-else><div class="adm-field-lbl">ID</div><input class="adm-input" :value="taskModal.f.task_id" disabled style="opacity:.5;"></div>
+          <div><div class="adm-field-lbl">Очки</div><input class="adm-input" v-model.number="taskModal.f.points" type="number" min="0" placeholder="100"></div>
+          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Название *</div><input class="adm-input" v-model="taskModal.f.name" maxlength="128" placeholder="Название задания"></div>
+          <div><div class="adm-field-lbl">Категория *</div><select class="adm-input" v-model="taskModal.f.category"><option v-for="c in categories" :key="c" :value="c">{{ c }}</option></select></div>
+          <div><div class="adm-field-lbl">Сложность</div><select class="adm-input" v-model="taskModal.f.difficulty"><option v-for="d in difficulties" :key="d" :value="d">{{ d }}</option></select></div>
+          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Флаг *</div><input class="adm-input" v-model="taskModal.f.flag" maxlength="256" placeholder="CTF{...}" style="font-family:ui-monospace,monospace;"></div>
+          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Описание</div><textarea class="adm-input" v-model="taskModal.f.description" style="min-height:80px;" placeholder="Описание задания…"></textarea></div>
+          <div style="grid-column:1/-1;"><div class="adm-field-lbl">URL страницы (необязательно)</div><input class="adm-input" v-model="taskModal.f.url" maxlength="128" placeholder="/task0 или пусто"></div>
+          <div><div class="adm-field-lbl">Автор</div><input class="adm-input" v-model="taskModal.f.author" maxlength="64" placeholder="Никнейм автора"></div>
+          <div><div class="adm-field-lbl">Ссылка на автора</div><input class="adm-input" v-model="taskModal.f.author_url" maxlength="200" placeholder="https://..."></div>
+          <div style="display:flex;gap:20px;align-items:center;grid-column:1/-1;">
+            <label class="adm-toggle"><input type="checkbox" v-model="taskModal.f.active"><span class="adm-track"></span><span style="font-size:13px;font-weight:600;margin-left:6px;">Активно</span></label>
+            <label class="adm-toggle"><input type="checkbox" v-model="taskModal.f.hide_open_button"><span class="adm-track"></span><span style="font-size:13px;font-weight:600;margin-left:6px;">Скрыть кнопку открыть</span></label>
+          </div>
+        </div>
+        <div v-if="taskModal.err" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#f87171;font-size:12px;font-weight:600;">{{ taskModal.err }}</div>
+        <div class="adm-modal-actions" style="margin-top:20px;">
+          <button class="adm-btn gray" @click="taskModal.show=false">Отмена</button>
+          <button class="adm-btn primary" @click="saveTaskModal" :disabled="taskModal.saving"><span v-if="taskModal.saving" class="adm-spinner"></span><span v-else>{{ taskModal.mode === 'create' ? 'Создать' : 'Сохранить' }}</span></button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  `,
+    };
+
     /* ─────────────────── ROUTER ─────────────────── */
     const router = createRouter({
       history: createWebHistory(),
@@ -1869,6 +3116,9 @@
         { path: '/login', component: LoginPage },
         { path: '/register', component: RegisterPage },
         { path: '/board', component: BoardPage },
+        { path: '/profile', component: ProfilePage },
+        { path: '/profile/:username', component: PublicProfilePage },
+        { path: '/ctf-admin', component: AdminPage },
         { path: '/:_(.*)*', redirect: '/' },
       ],
     });

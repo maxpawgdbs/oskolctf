@@ -10,10 +10,14 @@ __pycache__/
 venv/
 env/
 
-# Flask / runtime
+# Django / runtime
 instance/
 *.sqlite3
 *.db
+*.log
+staticfiles/
+media/
+local_settings.py
 
 # Secrets
 .env
