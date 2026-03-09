@@ -45,4 +45,7 @@ push-deploy.bat
 # Явно включаем в репо
 !flags.txt
 !css/bg.jpg
-!run.bat
+!run.battasks.json
+data/
+tasks.json
+data/
