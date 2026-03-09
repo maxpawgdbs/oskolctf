@@ -685,7 +685,9 @@ class ApiAdminTaskUploadFile(View):
             return _json_error("Файл не передан")
 
         # Безопасное имя файла — только буквы, цифры, дефис, точка, подчёркивание
-        filename = os.path.basename(f.name)
+        # os.path.basename не обрезает Windows-пути на Linux,
+        # поэтому нормализуем оба разделителя вручную
+        filename = f.name.replace('\\', '/').split('/')[-1]
         if not re.match(r'^[\w\-. ]+$', filename):
             return _json_error("Недопустимое имя файла (разрешены: буквы, цифры, -, _, пробел, .)")
         if f.size > ApiAdminTaskUploadFile.MAX_SIZE:
