@@ -16,7 +16,7 @@ services:
       # tasks.json — rw чтобы изменения через веб сохранялись в файл
       - ./tasks.json:/app/tasks.json
       # Файлы задач
-      - ./task:/app/task:ro
+      - ./task:/app/task
     expose:
       - "8005"
 
