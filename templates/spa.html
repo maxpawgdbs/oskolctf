@@ -1269,7 +1269,7 @@
       font-size: 11px;
       font-weight: 800;
       color: rgba(229, 231, 235, .45);
-      padding: 0 10px 10px;
+      padding: 12px 10px 10px;
       text-transform: uppercase;
       letter-spacing: .06em;
     }
@@ -1281,6 +1281,16 @@
       border-bottom: 1px solid rgba(255, 255, 255, .06);
       color: var(--textOnDark);
       vertical-align: middle;
+    }
+
+    .adm-table th:first-child,
+    .adm-table td:first-child {
+      padding-left: 16px;
+    }
+
+    .adm-table th:last-child,
+    .adm-table td:last-child {
+      padding-right: 16px;
     }
 
     .adm-table tr:last-child td {
@@ -1466,6 +1476,17 @@
     textarea.adm-input {
       resize: vertical;
       min-height: 90px;
+    }
+
+    select.adm-input {
+      background: rgba(15, 15, 25, .9);
+      color: var(--textOnDark);
+      cursor: pointer;
+    }
+
+    select.adm-input option {
+      background: #1a1a2e;
+      color: var(--textOnDark);
     }
 
     .adm-toggle {
@@ -2134,6 +2155,7 @@
         const tasks = ref([]);
         const board = ref([]);
         const pageLoad = ref(true);
+        const announcement = ref('');
         const submitting = ref(false);
         const shakeForm = ref(false);
         const popForm = ref(false);
@@ -2174,6 +2196,9 @@
           board.value = res.leaderboard;
           if (res.user) store.user = res.user;
           pageLoad.value = false;
+          // Загружаем анонс
+          const ann = await fetch('/api/announcement').then(r => r.json()).catch(() => null);
+          if (ann) announcement.value = ann.text || '';
         }
 
         async function submitFlag(e) {
@@ -2249,7 +2274,7 @@
           activeModal, activeCat, solvedCount, totalCount, myScore, progress,
           categories, filteredTasks, catCount, catClass, catIcon, diffClass,
           submitFlag, logout, openModal, closeModal,
-          modalFlag, modalShake, submitModalFlag
+          modalFlag, modalShake, submitModalFlag, announcement
         };
       },
       template: `
@@ -2265,7 +2290,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);font-size:12px;font-weight:800;color:var(--textOnDark);">
-                👤 {{ store.user?.username }}
+                👤 {{ store.user?.display_name || store.user?.username }}
               </div>
               <router-link to="/profile" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">Профиль</router-link>
               <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
@@ -2284,6 +2309,12 @@
 
       <!-- Content -->
       <div v-else class="container" style="padding:22px 0 64px;">
+
+        <!-- Announcement banner -->
+        <div v-if="announcement" style="margin-bottom:16px;padding:12px 18px;border-radius:12px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:#fde68a;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">📢</span>
+          <span>{{ announcement }}</span>
+        </div>
 
         <!-- Stats bar -->
         <div class="b-stats">
@@ -2418,7 +2449,7 @@
                       </td>
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);"
                         :style="{color:r.username===store.user?.username?'#a5b4fc':'var(--textOnDark)',fontWeight:r.username===store.user?.username?'800':'600'}">
-                        {{ r.username }}
+                        {{ r.display_name || r.username }}
                         <span v-if="r.username===store.user?.username" style="font-size:10px;opacity:.45;margin-left:4px;">(ты)</span>
                       </td>
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
@@ -2634,7 +2665,7 @@
               <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">← Борд</router-link>
+              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;"> Борд</router-link>
               <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
             </div>
@@ -2754,7 +2785,7 @@
               <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">← Борд</router-link>
+              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;"> Борд</router-link>
               <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
             </div>
@@ -2767,7 +2798,7 @@
       <div v-else-if="notFound" class="container" style="padding:80px 0;text-align:center;color:var(--mutedOnDark);">
         <div style="font-size:40px;margin-bottom:12px;">🔎</div>
         <div style="font-size:18px;font-weight:800;color:var(--textOnDark);">Пользователь не найден</div>
-        <router-link to="/board" style="display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;">← На борд</router-link>
+        <router-link to="/board" style="display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;"> На борд</router-link>
       </div>
       <div v-else-if="profile" class="container" style="padding:32px 0 64px;">
         <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:28px;flex-wrap:wrap;">
@@ -2826,8 +2857,12 @@
         const modal = reactive({ show: false, title: '', text: '', action: () => { } });
         const categories = ['Web', 'Разное', 'Крипто', 'Форензика', 'Реверс', 'Pwn', 'ОСИНТ'];
         const difficulties = ['Очень лёгкое', 'Лёгкое', 'Среднее', 'Сложное', 'Очень сложное'];
-        const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
-        const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', f: emptyForm() });
+        function extractFlagInner(flag) {
+          if (flag.startsWith('oskolctf{') && flag.endsWith('}')) return flag.slice(9, -1);
+          return flag;
+        }
+        const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', flagInner: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
+        const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', uploadedFile: '', uploadErr: '', pendingFile: null, f: emptyForm() });
         const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки' };
 
         function postJSON(url, body) {
@@ -2854,22 +2889,54 @@
           if (!d.ok) { t.active = !t.active; store.toast(d.error || 'Ошибка', 'err'); } else store.toast(t.active ? t.name + ' активировано' : t.name + ' скрыто', t.active ? 'ok' : 'info');
         }
         async function savePts(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/save', { points: t._pts }).then(r => r.json()); if (d.ok) store.toast(t.name + ': очки → ' + t._pts, 'ok'); else store.toast(d.error || 'Ошибка', 'err'); }
-        function openCreateTask() { taskModal.f = emptyForm(); taskModal.mode = 'create'; taskModal.err = ''; taskModal.show = true; }
-        function openEditTask(t) { taskModal.f = { task_id: t.id, name: t.name, category: t.category, difficulty: t.difficulty, description: t.description || '', points: t.points || t._pts, flag: t.flag || '', url: t.url || '', active: t.active, hide_open_button: t.hide_open_button || false, author: t.author || '', author_url: t.author_url || '' }; taskModal.mode = 'edit'; taskModal.err = ''; taskModal.show = true; }
+        function openCreateTask() { taskModal.f = emptyForm(); taskModal.mode = 'create'; taskModal.err = ''; taskModal.uploadedFile = ''; taskModal.uploadErr = ''; taskModal.pendingFile = null; taskModal.show = true; }
+        function openEditTask(t) { taskModal.f = { task_id: t.id, name: t.name, category: t.category, difficulty: t.difficulty, description: t.description || '', points: t.points || t._pts, flag: t.flag || '', flagInner: extractFlagInner(t.flag || ''), url: t.url || '', active: t.active, hide_open_button: t.hide_open_button || false, author: t.author || '', author_url: t.author_url || '' }; taskModal.mode = 'edit'; taskModal.err = ''; taskModal.uploadedFile = t.file ? t.file.split('/').pop() : ''; taskModal.uploadErr = ''; taskModal.show = true; }
         async function saveTaskModal() {
           const f = taskModal.f;
           if (!f.name.trim()) { taskModal.err = 'Название обязательно'; return; }
-          if (!f.flag.trim()) { taskModal.err = 'Флаг обязателен'; return; }
+          if (!f.flagInner.trim()) { taskModal.err = 'Флаг обязателен'; return; }
+          const fullFlag = 'oskolctf{' + f.flagInner.trim() + '}';
           taskModal.saving = true; taskModal.err = '';
           try {
             if (taskModal.mode === 'create') {
-              const d = await postJSON('/api/admin/tasks/create', { task_id: f.task_id ? parseInt(f.task_id) : undefined, name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
-              if (d.ok) { store.toast('Задание «' + d.name + '» создано (ID ' + d.task_id + ')', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
+              const d = await postJSON('/api/admin/tasks/create', { task_id: f.task_id ? parseInt(f.task_id) : undefined, name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: fullFlag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
+              if (d.ok) {
+                // Если выбран файл — загружаем сразу после создания
+                if (taskModal.pendingFile) {
+                  const fd = new FormData(); fd.append('file', taskModal.pendingFile);
+                  const up = await fetch('/api/admin/tasks/' + d.task_id + '/upload-file', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, body: fd, credentials: 'same-origin' }).then(r => r.json()).catch(() => null);
+                  if (up && up.ok) store.toast('Задание «' + d.name + '» создано, файл «' + up.filename + '» загружен (ID ' + d.task_id + ')', 'ok');
+                  else store.toast('Задание «' + d.name + '» создано, но файл не загрузился: ' + (up?.error || 'ошибка'), 'info');
+                } else {
+                  store.toast('Задание «' + d.name + '» создано (ID ' + d.task_id + ')', 'ok');
+                }
+                taskModal.show = false; tasks.value = []; await loadTasks(); loadStats();
+              } else { taskModal.err = d.error || 'Ошибка'; }
             } else {
-              const d = await postJSON('/api/admin/tasks/' + f.task_id + '/save', { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
+              const d = await postJSON('/api/admin/tasks/' + f.task_id + '/save', { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: fullFlag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
               if (d.ok) { store.toast('Задание «' + f.name + '» сохранено', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
             }
           } finally { taskModal.saving = false; }
+        }
+        async function uploadTaskFile(event) {
+          taskModal.uploadErr = '';
+          taskModal.uploadedFile = '';
+          const file = event.target.files[0];
+          if (!file) return;
+          const fd = new FormData();
+          fd.append('file', file);
+          const res = await fetch('/api/admin/tasks/' + taskModal.f.task_id + '/upload-file', {
+            method: 'POST', headers: { 'X-CSRFToken': store.csrf }, body: fd, credentials: 'same-origin'
+          }).then(r => r.json()).catch(() => null);
+          if (!res || !res.ok) {
+            taskModal.uploadErr = res?.error || 'Ошибка загрузки';
+          } else {
+            taskModal.uploadedFile = res.filename;
+            store.toast('Файл «' + res.filename + '» загружен', 'ok');
+            const tInList = tasks.value.find(x => x.id === taskModal.f.task_id);
+            if (tInList) tInList.file = res.path.replace(/^\/task\//, '');
+          }
+          event.target.value = '';
         }
         function confirmDeleteTask(t) { modal.title = 'Удалить задание'; modal.text = 'Удалить задание «' + t.name + '» (ID ' + t.id + ')? Все решения будут также удалены.'; modal.action = () => deleteTask(t); modal.show = true; }
         async function deleteTask(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/delete', {}).then(r => r.json()); if (d.ok) { tasks.value = tasks.value.filter(x => x.id !== t.id); store.toast('Задание «' + t.name + '» удалено', 'ok'); loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
@@ -2900,7 +2967,7 @@
           await Promise.all([loadMe(), loadStats(), loadAnnouncement()]);
         });
 
-        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement };
+        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement };
       },
       template: `
   <div class="admin-view">
@@ -2921,7 +2988,7 @@
         <div class="adm-nav-item" :class="{active:page==='settings'}" @click="goSettings"><span class="icon">⚙</span> Настройки</div>
       </div>
       <div class="adm-footer">
-        <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">← На сайт</a>
+        <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">На сайт</a>
       </div>
     </aside>
     <div class="adm-main">
@@ -2970,7 +3037,7 @@
               <tbody>
                 <tr v-for="t in filteredTasks" :key="t.id">
                   <td style="font-family:ui-monospace,monospace;font-size:12px;color:rgba(229,231,235,.45);">{{ t.id }}</td>
-                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div></td>
+                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div><div v-if="t.file" style="font-size:11px;color:#4ade80;margin-top:2px;">📎 {{ t.file.split('/').pop() }}</div></td>
                   <td><span class="adm-badge-gray">{{ t.category }}</span></td>
                   <td><input class="adm-input adm-input-sm" type="number" min="0" v-model.number="t._pts" @change="savePts(t)"></td>
                   <td><span class="adm-badge-indigo">{{ t.solve_count }}</span></td>
@@ -3086,11 +3153,22 @@
           <div style="grid-column:1/-1;"><div class="adm-field-lbl">Название *</div><input class="adm-input" v-model="taskModal.f.name" maxlength="128" placeholder="Название задания"></div>
           <div><div class="adm-field-lbl">Категория *</div><select class="adm-input" v-model="taskModal.f.category"><option v-for="c in categories" :key="c" :value="c">{{ c }}</option></select></div>
           <div><div class="adm-field-lbl">Сложность</div><select class="adm-input" v-model="taskModal.f.difficulty"><option v-for="d in difficulties" :key="d" :value="d">{{ d }}</option></select></div>
-          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Флаг *</div><input class="adm-input" v-model="taskModal.f.flag" maxlength="256" placeholder="CTF{...}" style="font-family:ui-monospace,monospace;"></div>
+          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Флаг *</div><div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,.13);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.07);transition:.14s ease;" :style="taskModal.f.flagInner ? 'border-color:rgba(99,102,241,.35)' : ''"><span style="padding:8px 10px;font-size:13px;font-weight:700;color:rgba(165,180,252,.7);font-family:ui-monospace,monospace;white-space:nowrap;flex-shrink:0;border-right:1px solid rgba(255,255,255,.08);">oskolctf{</span><input style="flex:1;min-width:0;background:transparent;border:none;outline:none;padding:8px 8px;font-size:13px;font-family:ui-monospace,monospace;font-weight:500;color:var(--textOnDark);" v-model="taskModal.f.flagInner" maxlength="240" placeholder="введите флаг"><span style="padding:8px 10px;font-size:13px;font-weight:700;color:rgba(165,180,252,.7);font-family:ui-monospace,monospace;flex-shrink:0;border-left:1px solid rgba(255,255,255,.08);">}</span></div></div>
           <div style="grid-column:1/-1;"><div class="adm-field-lbl">Описание</div><textarea class="adm-input" v-model="taskModal.f.description" style="min-height:80px;" placeholder="Описание задания…"></textarea></div>
           <div style="grid-column:1/-1;"><div class="adm-field-lbl">URL страницы (необязательно)</div><input class="adm-input" v-model="taskModal.f.url" maxlength="128" placeholder="/task0 или пусто"></div>
           <div><div class="adm-field-lbl">Автор</div><input class="adm-input" v-model="taskModal.f.author" maxlength="64" placeholder="Никнейм автора"></div>
           <div><div class="adm-field-lbl">Ссылка на автора</div><input class="adm-input" v-model="taskModal.f.author_url" maxlength="200" placeholder="https://..."></div>
+          <div style="grid-column:1/-1;">
+            <div class="adm-field-lbl">Файл задания</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <label style="display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);cursor:pointer;font-size:13px;font-weight:600;color:var(--textOnDark);">
+                📎 Выбрать файл
+                <input type="file" style="display:none;" @change="taskModal.mode==='edit' ? uploadTaskFile($event) : (taskModal.pendingFile=$event.target.files[0], taskModal.uploadedFile=$event.target.files[0]?.name||'', $event.target.value='')">
+              </label>
+              <span v-if="taskModal.uploadedFile" style="font-size:12px;color:#4ade80;font-weight:700;">✓ {{ taskModal.uploadedFile }}</span>
+              <span v-if="taskModal.uploadErr" style="font-size:12px;color:#f87171;font-weight:700;">{{ taskModal.uploadErr }}</span>
+            </div>
+          </div>
           <div style="display:flex;gap:20px;align-items:center;grid-column:1/-1;">
             <label class="adm-toggle"><input type="checkbox" v-model="taskModal.f.active"><span class="adm-track"></span><span style="font-size:13px;font-weight:600;margin-left:6px;">Активно</span></label>
             <label class="adm-toggle"><input type="checkbox" v-model="taskModal.f.hide_open_button"><span class="adm-track"></span><span style="font-size:13px;font-weight:600;margin-left:6px;">Скрыть кнопку открыть</span></label>

@@ -44,6 +44,7 @@ urlpatterns = [
     path("api/admin/tasks-list", api_views.api_admin_tasks),
     path("api/admin/tasks/create", api_views.ApiAdminTaskCreate.as_view()),
     path("api/admin/tasks/<int:task_id>/save", api_views.ApiAdminTaskSave.as_view()),
+    path("api/admin/tasks/<int:task_id>/upload-file", api_views.ApiAdminTaskUploadFile.as_view()),
     path("api/admin/tasks/<int:task_id>/clear-solves", api_views.api_admin_task_clear_solves),
     path("api/admin/tasks/<int:task_id>/delete", api_views.api_admin_task_delete),
     path("api/admin/reset-solves", api_views.api_admin_reset_solves),

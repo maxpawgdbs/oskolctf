@@ -499,6 +499,7 @@ def api_admin_tasks(request):
             "flag": t.flag,
             "url": t.url,
             "hide_open_button": t.hide_open_button,
+            "file": t.file or "",
         }
         for t in tasks
     ]})
@@ -650,3 +651,58 @@ class ApiAdminSetAnnouncement(View):
         else:
             cache.delete("site_announcement")
         return JsonResponse({"ok": True, "text": text})
+
+
+_CATEGORY_FOLDER = {
+    'Web': 'web',
+    'Разное': 'misc',
+    'Крипто': 'crypto',
+    'Форензика': 'forenzika',
+    'Реверс': 'revers',
+    'Pwn': 'pwn',
+    'ОСИНТ': 'osint',
+}
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ApiAdminTaskUploadFile(View):
+    MAX_SIZE = 64 * 1024 * 1024  # 64 МБ
+
+    def post(self, request, task_id):
+        import re
+        from pathlib import Path
+
+        err = _require_staff(request)
+        if err:
+            return err
+        try:
+            task = Task.objects.get(task_id=task_id)
+        except Task.DoesNotExist:
+            return _json_error("Задача не найдена", 404)
+
+        f = request.FILES.get("file")
+        if not f:
+            return _json_error("Файл не передан")
+
+        # Безопасное имя файла — только буквы, цифры, дефис, точка, подчёркивание
+        filename = os.path.basename(f.name)
+        if not re.match(r'^[\w\-. ]+$', filename):
+            return _json_error("Недопустимое имя файла (разрешены: буквы, цифры, -, _, пробел, .)")
+        if f.size > ApiAdminTaskUploadFile.MAX_SIZE:
+            return _json_error("Файл не должен превышать 64 МБ")
+
+        subdir = _CATEGORY_FOLDER.get(task.category, 'misc')
+        task_dir = Path(settings.BASE_DIR) / 'task' / subdir
+        task_dir.mkdir(parents=True, exist_ok=True)
+
+        dest = task_dir / filename
+        with open(dest, 'wb') as out:
+            for chunk in f.chunks():
+                out.write(chunk)
+
+        # Сохраняем путь в базу, чтобы борд показал кнопку скачать
+        task.file = f"{subdir}/{filename}"
+        task.save(update_fields=['file'])
+        dump_tasks_to_json()
+
+        return JsonResponse({"ok": True, "filename": filename, "path": f"/task/{subdir}/{filename}"})
