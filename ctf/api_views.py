@@ -684,7 +684,6 @@ class ApiAdminTaskUploadFile(View):
         if not f:
             return _json_error("Файл не передан")
 
-        # Безопасное имя файла — только буквы, цифры, дефис, точка, подчёркивание
         # os.path.basename не обрезает Windows-пути на Linux,
         # поэтому нормализуем оба разделителя вручную
         filename = f.name.replace('\\', '/').split('/')[-1]
@@ -693,18 +692,22 @@ class ApiAdminTaskUploadFile(View):
         if f.size > ApiAdminTaskUploadFile.MAX_SIZE:
             return _json_error("Файл не должен превышать 64 МБ")
 
-        subdir = _CATEGORY_FOLDER.get(task.category, 'misc')
-        task_dir = Path(settings.BASE_DIR) / 'task' / subdir
-        task_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            subdir = _CATEGORY_FOLDER.get(task.category, 'misc')
+            task_dir = Path(settings.TASK_FILES_DIR) / subdir
+            task_dir.mkdir(parents=True, exist_ok=True)
 
-        dest = task_dir / filename
-        with open(dest, 'wb') as out:
-            for chunk in f.chunks():
-                out.write(chunk)
+            dest = task_dir / filename
+            with open(dest, 'wb') as out:
+                for chunk in f.chunks():
+                    out.write(chunk)
 
-        # Сохраняем путь в базу, чтобы борд показал кнопку скачать
-        task.file = f"{subdir}/{filename}"
-        task.save(update_fields=['file'])
-        dump_tasks_to_json()
+            # Сохраняем путь в базу, чтобы борд показал кнопку скачать
+            task.file = f"{subdir}/{filename}"
+            task.save(update_fields=['file'])
+            dump_tasks_to_json()
 
-        return JsonResponse({"ok": True, "filename": filename, "path": f"/task/{subdir}/{filename}"})
+            return JsonResponse({"ok": True, "filename": filename, "path": f"/task/{subdir}/{filename}"})
+        except Exception as e:
+            import traceback
+            return _json_error(f"Ошибка сервера: {traceback.format_exc()[-300:]}", 500)
