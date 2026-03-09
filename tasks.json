@@ -4,7 +4,7 @@
     "name": "Привет, CTF!",
     "category": "Разное",
     "difficulty": "Очень лёгкое",
-    "description": "Флаг лежит прямо на сервере. Найди правильный маршрут и забери его. Иногда всё проще, чем кажется.",
+    "description": "Открой таску :)",
     "points": 100,
     "flag": "oskolctf{task0_it_is_good_start}",
     "url": "/task0",
@@ -78,7 +78,7 @@
     "points": 100,
     "flag": "oskolctf{oskolctf}",
     "url": "/task5",
-    "active": true,
+    "active": false,
     "hide_open_button": true,
     "author": "",
     "author_url": ""
