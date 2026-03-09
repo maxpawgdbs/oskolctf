@@ -29,6 +29,9 @@ secret_key
 Thumbs.db
 desktop.ini
 
+# Local deploy scripts (contain server IP/credentials)
+push-deploy.bat
+
 
 # Editor
 .vscode/

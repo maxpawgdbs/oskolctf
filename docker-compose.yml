@@ -13,8 +13,8 @@ services:
       - ./data:/data
       # Медиафайлы (аватарки) — хранятся между перезапусками
       - ./media:/app/media
-      # tasks.json можно менять без пересборки образа
-      - ./tasks.json:/app/tasks.json:ro
+      # tasks.json — rw чтобы изменения через веб сохранялись в файл
+      - ./tasks.json:/app/tasks.json
       # Файлы задач
       - ./task:/app/task:ro
     expose:

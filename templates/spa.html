@@ -2867,7 +2867,7 @@
               if (d.ok) { store.toast('Задание «' + d.name + '» создано (ID ' + d.task_id + ')', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
             } else {
               const d = await postJSON('/api/admin/tasks/' + f.task_id + '/save', { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
-              if (d.ok) { store.toast('Задание «' + f.name + '» сохранено', 'ok'); taskModal.show = false; const idx = tasks.value.findIndex(t => t.id === f.task_id); if (idx !== -1) Object.assign(tasks.value[idx], { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, _pts: f.points, active: f.active, author: f.author, flag: f.flag, url: f.url, author_url: f.author_url }); } else { taskModal.err = d.error || 'Ошибка'; }
+              if (d.ok) { store.toast('Задание «' + f.name + '» сохранено', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
             }
           } finally { taskModal.saving = false; }
         }
