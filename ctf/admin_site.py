@@ -12,7 +12,7 @@ from django.utils.html import format_html
 from django.shortcuts import render
 from django import forms
 
-from ctf.models import User, Task, Solve, load_tasks_json, sync_tasks_from_json
+from ctf.models import User, Task, Solve, DynamicPricingConfig, load_tasks_json, sync_tasks_from_json
 
 
 # ── Кастомный AdminSite ───────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ class OskolCTFAdminSite(AdminSite):
             path("reset-solves/", self.admin_view(self.reset_solves_view), name="reset_solves"),
             path("top-users/", self.admin_view(self.top_users_view), name="top_users"),
             path("announcements/", self.admin_view(self.announcements_view), name="announcements"),
+            path("dynamic-pricing/", self.admin_view(self.dynamic_pricing_view), name="dynamic_pricing"),
         ]
         return custom + urls
 
@@ -107,6 +108,42 @@ class OskolCTFAdminSite(AdminSite):
         from django.core.cache import cache
         ctx["current"] = cache.get("site_announcement", "")
         return render(request, "admin/announcements.html", ctx)
+
+    def dynamic_pricing_view(self, request):
+        """Заставка настроек динамического ценообразования."""
+        ctx = self.each_context(request)
+        ctx["title"] = "Динамические цены"
+        cfg = DynamicPricingConfig.get_config()
+        ctx["cfg"] = cfg
+        ctx["error"] = None
+        ctx["success"] = None
+        if request.method == "POST":
+            try:
+                cfg.enabled = request.POST.get("enabled") == "on"
+                decay = int(request.POST.get("decay_per_solve", 5))
+                min_pct = int(request.POST.get("min_percent", 20))
+                if decay < 0:
+                    raise ValueError("Снижение не может быть отрицательным")
+                if not (1 <= min_pct <= 100):
+                    raise ValueError("Минимальный % должен быть от 1 до 100")
+                cfg.decay_per_solve = decay
+                cfg.min_percent = min_pct
+                cfg.save()
+                ctx["success"] = "Настройки сохранены"
+            except (ValueError, TypeError) as e:
+                ctx["error"] = str(e)
+        # Превью: текущие цены заданий
+        from django.db.models import Count
+        ctx["tasks_preview"] = [
+            {
+                "name": t.name,
+                "base": t.points,
+                "current": t.get_current_points(),
+                "solves": t.solve_count,
+            }
+            for t in Task.objects.filter(active=True).annotate(sc=Count("solves"))[:20]
+        ]
+        return render(request, "admin/dynamic_pricing.html", ctx)
 
 
 ctf_admin_site = OskolCTFAdminSite(name="ctfadmin")

@@ -1712,6 +1712,49 @@
     const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
     const { createRouter, createWebHistory, useRouter, useRoute, RouterLink } = VueRouter;
 
+    /* ─────────────────── CHART HELPER ─────────────────── */
+    function buildSolveChart(profileVal) {
+      const tasks = profileVal?.solved_tasks;
+      if (!tasks || tasks.length === 0) return null;
+      const W = 560, H = 130;
+      const padL = 44, padR = 14, padT = 10, padB = 28;
+      const cW = W - padL - padR, cH = H - padT - padB;
+      const dates = tasks.map(t => new Date(t.solved_at).getTime());
+      const minDate = Math.min(...dates);
+      const maxDate = Math.max(Date.now(), ...dates);
+      const dRange = maxDate - minDate || 1;
+      const maxScore = tasks[tasks.length - 1].cumulative_score || 1;
+      const cx = d => padL + (d - minDate) / dRange * cW;
+      const cy = s => padT + cH - (s / maxScore) * cH;
+      const pts = [[cx(minDate), cy(0)]];
+      let prev = 0;
+      for (const t of tasks) {
+        const d = new Date(t.solved_at).getTime();
+        pts.push([cx(d), cy(prev)]);
+        pts.push([cx(d), cy(t.cumulative_score)]);
+        prev = t.cumulative_score;
+      }
+      pts.push([cx(maxDate), cy(prev)]);
+      const line = pts.map(p => p.join(',')).join(' ');
+      const area = [
+        [cx(minDate), cy(0)],
+        ...pts.slice(1),
+        [cx(maxDate), cy(0)]
+      ].map(p => p.join(',')).join(' ');
+      const dots = tasks.map(t => ({
+        x: cx(new Date(t.solved_at).getTime()),
+        y: cy(t.cumulative_score),
+        name: t.name,
+        pts: t.points
+      }));
+      const fmt = d => new Date(d).toLocaleDateString('ru', { day: 'numeric', month: 'short' });
+      return {
+        W, H, padL, padR, padT, padB, cH, line, area, dots, maxScore,
+        xL: [{ x: cx(minDate), label: fmt(minDate) }, { x: cx(maxDate), label: fmt(maxDate) }],
+        yL: [{ y: cy(0), lbl: '0' }, { y: cy(maxScore), lbl: String(maxScore) }]
+      };
+    }
+
     /* ─────────────────── STORE ─────────────────── */
     const store = reactive({
       user: null,
@@ -2647,11 +2690,13 @@
 
         async function logout() { await store.logout(); router.push('/'); }
 
+        const solveChart = computed(() => buildSolveChart(profile.value));
+
         onMounted(loadProfile);
 
         return {
           store, router, profile, loading, editMode, editName, editBio,
-          pwMode, oldPw, newPw, saving, fileInput,
+          pwMode, oldPw, newPw, saving, fileInput, solveChart,
           saveProfile, uploadAvatar, changePassword, logout
         };
       },
@@ -2728,6 +2773,31 @@
           </div>
         </div>
 
+        <!-- Progress chart -->
+        <div v-if="solveChart" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:20px;">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
+          <div style="padding:12px 16px 4px;">
+            <svg :viewBox="'0 0 ' + solveChart.W + ' ' + solveChart.H" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="profGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.H - solveChart.padB" :x2="solveChart.W - solveChart.padR" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.W - solveChart.padR" :y2="solveChart.padT" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3,5"/>
+              <polygon :points="solveChart.area" fill="url(#profGrad)"/>
+              <polyline :points="solveChart.line" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="miter" stroke-linecap="square"/>
+              <circle v-for="(d,i) in solveChart.dots" :key="i" :cx="d.x" :cy="d.y" r="3.5" fill="#6366f1" stroke="rgba(11,15,23,.9)" stroke-width="1.5">
+                <title>{{ d.name }} (+{{ d.pts }} pts)</title>
+              </circle>
+              <text v-for="l in solveChart.xL" :key="l.x" :x="l.x" :y="solveChart.H - 6" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="middle">{{ l.label }}</text>
+              <text v-for="l in solveChart.yL" :key="l.y" :x="solveChart.padL - 5" :y="l.y + 3" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="end">{{ l.lbl }}</text>
+            </svg>
+          </div>
+        </div>
+
         <!-- Solved tasks -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;">
           <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">Решённые задания ({{ profile.solved_tasks?.length || 0 }})</div>
@@ -2772,8 +2842,9 @@
         }
 
         async function logout() { await store.logout(); router.push('/'); }
+        const solveChart = computed(() => buildSolveChart(profile.value));
         onMounted(loadProfile);
-        return { store, router, profile, loading, notFound, logout };
+        return { store, router, profile, loading, notFound, logout, solveChart };
       },
       template: `
     <div class="board-root">
@@ -2819,6 +2890,31 @@
             </div>
           </div>
         </div>
+        <!-- Progress chart -->
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:16px;">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
+          <div v-if="solveChart" style="padding:12px 16px 4px;">
+            <svg :viewBox="'0 0 ' + solveChart.W + ' ' + solveChart.H" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="pubProfGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.H - solveChart.padB" :x2="solveChart.W - solveChart.padR" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.W - solveChart.padR" :y2="solveChart.padT" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3,5"/>
+              <polygon :points="solveChart.area" fill="url(#pubProfGrad)"/>
+              <polyline :points="solveChart.line" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="miter" stroke-linecap="square"/>
+              <circle v-for="(d,i) in solveChart.dots" :key="i" :cx="d.x" :cy="d.y" r="3.5" fill="#6366f1" stroke="rgba(11,15,23,.9)" stroke-width="1.5">
+                <title>{{ d.name }} (+{{ d.pts }} pts)</title>
+              </circle>
+              <text v-for="l in solveChart.xL" :key="l.x" :x="l.x" :y="solveChart.H - 6" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="middle">{{ l.label }}</text>
+              <text v-for="l in solveChart.yL" :key="l.y" :x="solveChart.padL - 5" :y="l.y + 3" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="end">{{ l.lbl }}</text>
+            </svg>
+          </div>
+          <div v-else style="padding:14px 18px;font-size:13px;color:rgba(229,231,235,.35);">Нет данных</div>
+        </div>
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;">
           <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">Решённые задания ({{ profile.solved_tasks?.length || 0 }})</div>
           <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;" v-if="profile.solved_tasks?.length">
@@ -2855,6 +2951,9 @@
         const importing = ref(false);
         const importResult = ref(null);
         const modal = reactive({ show: false, title: '', text: '', action: () => { } });
+        const dpConfig = reactive({ enabled: false, decay_per_solve: 5, min_percent: 20 });
+        const dpPreview = ref([]);
+        const dpSaving = ref(false);
         const categories = ['Web', 'Разное', 'Крипто', 'Форензика', 'Реверс', 'Pwn', 'ОСИНТ'];
         const difficulties = ['Очень лёгкое', 'Лёгкое', 'Среднее', 'Сложное', 'Очень сложное'];
         function extractFlagInner(flag) {
@@ -2863,7 +2962,7 @@
         }
         const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', flagInner: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
         const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', uploadedFile: '', uploadErr: '', pendingFile: null, f: emptyForm() });
-        const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки' };
+        const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки', dynamic_pricing: 'Динамические цены' };
 
         function postJSON(url, body) {
           return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf }, body: JSON.stringify(body), credentials: 'same-origin' });
@@ -2958,6 +3057,18 @@
         function confirmResetAll() { modal.title = '☢ Ядерный сброс'; modal.text = 'Удалить ВСЕ решения у всех пользователей? Это действие необратимо.'; modal.action = resetAllSolves; modal.show = true; }
         async function resetAllSolves() { const d = await postJSON('/api/admin/reset-solves', {}).then(r => r.json()); if (d.ok) { store.toast('Сброшено ' + d.deleted + ' решений', 'ok'); users.value = []; tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
         function goSettings() { page.value = 'settings'; loadAnnouncement(); }
+        async function loadDynamicPricing() {
+          const d = await fetch('/api/admin/dynamic-pricing').then(r => r.json()).catch(() => null);
+          if (d?.ok) { Object.assign(dpConfig, { enabled: d.enabled, decay_per_solve: d.decay_per_solve, min_percent: d.min_percent }); dpPreview.value = d.tasks_preview || []; }
+        }
+        async function saveDynamicPricing() {
+          dpSaving.value = true;
+          const d = await postJSON('/api/admin/dynamic-pricing', { enabled: dpConfig.enabled, decay_per_solve: Number(dpConfig.decay_per_solve), min_percent: Number(dpConfig.min_percent) }).then(r => r.json()).catch(() => null);
+          dpSaving.value = false;
+          if (d?.ok) { store.toast('Настройки сохранены', 'ok'); loadDynamicPricing(); }
+          else store.toast(d?.error || 'Ошибка', 'err');
+        }
+        function goDP() { page.value = 'dynamic_pricing'; loadDynamicPricing(); }
 
         onMounted(async () => {
           if (!store.user) { const d = await fetch('/api/me').then(r => r.json()).catch(() => ({ user: null })); store.user = d.user; }
@@ -2967,7 +3078,7 @@
           await Promise.all([loadMe(), loadStats(), loadAnnouncement()]);
         });
 
-        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement };
+        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP };
       },
       template: `
   <div class="admin-view">
@@ -2986,6 +3097,7 @@
         <div class="adm-nav-section">Система</div>
         <div class="adm-nav-item" :class="{active:page==='import'}" @click="page='import';importText=''"><span class="icon">↑</span> Импорт JSON</div>
         <div class="adm-nav-item" :class="{active:page==='settings'}" @click="goSettings"><span class="icon">⚙</span> Настройки</div>
+        <div class="adm-nav-item" :class="{active:page==='dynamic_pricing'}" @click="goDP"><span class="icon">⚡</span> Дин. цены</div>
       </div>
       <div class="adm-footer">
         <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">На сайт</a>
@@ -3123,6 +3235,66 @@
                 <div><div style="font-size:13px;font-weight:800;color:#f87171;">Сбросить ВСЕ решения</div><div style="font-size:12px;color:rgba(239,68,68,.65);margin-top:3px;">Удалит все записи о решениях у всех пользователей. Необратимо.</div></div>
                 <button class="adm-btn danger" @click="confirmResetAll">☢ Сбросить всё</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DYNAMIC PRICING -->
+        <div v-else-if="page === 'dynamic_pricing'">
+          <div class="adm-section-row"><div class="adm-section-title">⚡ Динамические цены</div></div>
+          <div class="adm-card" style="margin-bottom:20px;">
+            <div class="adm-card-h"><div class="adm-card-title">Настройки</div></div>
+            <div class="adm-card-b">
+              <div style="font-size:12px;color:rgba(229,231,235,.55);margin-bottom:16px;">Чем больше команд решило задание — тем меньше оно стоит. Очки фиксируются в момент сдачи флага.</div>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                  <div class="adm-toggle" style="flex-shrink:0;"><input type="checkbox" v-model="dpConfig.enabled"><span class="adm-track"></span></div>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--textOnDark);">Включить динамические цены</div>
+                    <div style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">Каждое новое решение снижает стоимость задания</div>
+                  </div>
+                </label>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(229,231,235,.55);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Снижение за каждое решение (очки)</div>
+                  <input class="adm-input" type="number" min="0" max="10000" v-model.number="dpConfig.decay_per_solve" style="width:140px;">
+                  <div style="font-size:11px;color:rgba(229,231,235,.4);margin-top:4px;">Цена падает на это число очков за каждый новый solve</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(229,231,235,.55);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Минимальная цена (% от базовой)</div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input class="adm-input" type="number" min="1" max="100" v-model.number="dpConfig.min_percent" style="width:140px;">
+                    <span style="font-size:12px;color:rgba(229,231,235,.45);">Цена не упадёт ниже {{ dpConfig.min_percent }}% от базовой</span>
+                  </div>
+                </div>
+                <div>
+                  <button class="adm-btn primary" @click="saveDynamicPricing" :disabled="dpSaving">
+                    <span v-if="dpSaving" class="adm-spinner"></span><span v-else>💾 Сохранить</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="adm-card" v-if="dpPreview.length">
+            <div class="adm-card-h"><div class="adm-card-title">Текущие цены активных заданий</div></div>
+            <div class="adm-card-b" style="padding:0;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
+                    <th style="padding:10px 14px;text-align:left;font-weight:700;color:rgba(229,231,235,.55);">Задание</th>
+                    <th style="padding:10px 14px;text-align:center;font-weight:700;color:rgba(229,231,235,.55);">База</th>
+                    <th style="padding:10px 14px;text-align:center;font-weight:700;color:rgba(229,231,235,.55);">Решений</th>
+                    <th style="padding:10px 14px;text-align:center;font-weight:700;color:rgba(229,231,235,.55);">Сейчас</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in dpPreview" :key="t.name" style="border-bottom:1px solid rgba(255,255,255,.05);">
+                    <td style="padding:9px 14px;color:var(--textOnDark);font-weight:600;">{{ t.name }}</td>
+                    <td style="padding:9px 14px;text-align:center;color:rgba(229,231,235,.55);">{{ t.base }}</td>
+                    <td style="padding:9px 14px;text-align:center;color:rgba(229,231,235,.55);">{{ t.solves }}</td>
+                    <td style="padding:9px 14px;text-align:center;" :style="t.current < t.base ? 'color:#f87171;font-weight:800;' : 'color:#4ade80;font-weight:800;'">{{ t.current }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

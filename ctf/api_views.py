@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required as dj_login_required
 
-from ctf.models import User, Task, Solve, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
+from ctf.models import User, Task, Solve, DynamicPricingConfig, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
 
 
 def _json_error(msg, status=400):
@@ -144,7 +144,8 @@ def api_board(request):
             "category": t.category,
             "difficulty": t.difficulty,
             "description": t.description,
-            "points": t.points,
+            "points": t.get_current_points(),
+            "base_points": t.points,
             "solved": t.id in my_solves or t.task_id in [s for s in my_solves],
             "solved_at": my_solves.get(t.id),
             "solve_count": t.sc,
@@ -219,7 +220,12 @@ class ApiSubmit(View):
                 break
         if task is None:
             return JsonResponse({"ok": False, "error": "Неверный флаг", "category": "error"})
-        _, created = Solve.objects.get_or_create(user=request.user, task=task)
+        current_pts = task.get_current_points()
+        solve, created = Solve.objects.get_or_create(
+            user=request.user,
+            task=task,
+            defaults={"points_awarded": current_pts},
+        )
         if not created:
             return JsonResponse({
                 "ok": False,
@@ -228,9 +234,9 @@ class ApiSubmit(View):
             })
         return JsonResponse({
             "ok": True,
-            "message": f"Засчитано! {task.name} (+{task.points} pts)",
+            "message": f"Засчитано! {task.name} (+{current_pts} pts)",
             "task_id": task.task_id,
-            "points": task.points,
+            "points": current_pts,
         })
 
 
@@ -271,17 +277,22 @@ def api_profile(request, username: str):
     except User.DoesNotExist:
         return JsonResponse({"ok": False, "error": "Пользователь не найден"}, status=404)
     solves = u.solves.select_related("task").order_by("solved_at")
-    solved_tasks = [
-        {
+    solved_tasks = []
+    cumulative = 0
+    for s in solves:
+        if not s.task.active:
+            continue
+        pts = s.points_awarded if s.points_awarded else s.task.points
+        cumulative += pts
+        solved_tasks.append({
             "task_id": s.task.task_id,
             "name": s.task.name,
             "category": s.task.category,
-            "points": s.task.points,
+            "points": pts,
+            "base_points": s.task.points,
             "solved_at": str(s.solved_at),
-        }
-        for s in solves
-        if s.task.active
-    ]
+            "cumulative_score": cumulative,
+        })
     return JsonResponse({
         "ok": True,
         "profile": {
@@ -651,6 +662,64 @@ class ApiAdminSetAnnouncement(View):
         else:
             cache.delete("site_announcement")
         return JsonResponse({"ok": True, "text": text})
+
+
+@csrf_exempt
+def api_admin_dynamic_pricing(request):
+    """GET: получить настройки; POST: обновить настройки динамического ценообразования."""
+    err = _require_staff(request)
+    if err:
+        return err
+    cfg = DynamicPricingConfig.get_config()
+    if request.method == "GET":
+        from django.db.models import Count
+        tasks_preview = [
+            {
+                "name": t.name,
+                "base": t.points,
+                "current": t.get_current_points(),
+                "solves": t.sc,
+            }
+            for t in Task.objects.filter(active=True).annotate(sc=Count("solves"))[:25]
+        ]
+        return JsonResponse({
+            "ok": True,
+            "enabled": cfg.enabled,
+            "decay_per_solve": cfg.decay_per_solve,
+            "min_percent": cfg.min_percent,
+            "tasks_preview": tasks_preview,
+        })
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return _json_error("Invalid JSON")
+        if "enabled" in data:
+            cfg.enabled = bool(data["enabled"])
+        if "decay_per_solve" in data:
+            try:
+                decay = int(data["decay_per_solve"])
+            except (ValueError, TypeError):
+                return _json_error("decay_per_solve должен быть числом")
+            if decay < 0:
+                return _json_error("decay_per_solve не может быть отрицательным")
+            cfg.decay_per_solve = decay
+        if "min_percent" in data:
+            try:
+                pct = int(data["min_percent"])
+            except (ValueError, TypeError):
+                return _json_error("min_percent должен быть числом")
+            if not (1 <= pct <= 100):
+                return _json_error("min_percent должен быть от 1 до 100")
+            cfg.min_percent = pct
+        cfg.save()
+        return JsonResponse({
+            "ok": True,
+            "enabled": cfg.enabled,
+            "decay_per_solve": cfg.decay_per_solve,
+            "min_percent": cfg.min_percent,
+        })
+    return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
 
 
 _CATEGORY_FOLDER = {

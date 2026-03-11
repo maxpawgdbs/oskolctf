@@ -49,4 +49,5 @@ urlpatterns = [
     path("api/admin/tasks/<int:task_id>/delete", api_views.api_admin_task_delete),
     path("api/admin/reset-solves", api_views.api_admin_reset_solves),
     path("api/admin/set-announcement", api_views.ApiAdminSetAnnouncement.as_view()),
+    path("api/admin/dynamic-pricing", api_views.api_admin_dynamic_pricing),
 ]

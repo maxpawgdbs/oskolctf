@@ -42,7 +42,7 @@ class User(AbstractUser):
     def get_score(self):
         from django.db.models import Sum
         total = self.solves.filter(task__active=True).aggregate(
-            s=Sum("task__points")
+            s=Sum("points_awarded")
         )["s"]
         return total or 0
 
@@ -104,6 +104,19 @@ class Task(models.Model):
     def solve_count(self):
         return self.solves.count()
 
+    def get_current_points(self):
+        """Возвращает текущую стоимость с учётом динамического ценообразования."""
+        try:
+            cfg = DynamicPricingConfig.get_config()
+            if not cfg.enabled:
+                return self.points
+            solves = self.solve_count
+            min_pts = max(1, self.points * cfg.min_percent // 100)
+            decayed = self.points - cfg.decay_per_solve * solves
+            return max(min_pts, decayed)
+        except Exception:
+            return self.points
+
 
 # ─── Решение ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +126,7 @@ class Solve(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="solves")
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="solves")
     solved_at = models.DateTimeField(default=timezone.now, verbose_name="Время решения")
+    points_awarded = models.PositiveIntegerField(default=0, verbose_name="Очков получено")
 
     class Meta:
         unique_together = ("user", "task")
@@ -122,6 +136,41 @@ class Solve(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.task.name}"
+
+
+# ─── Динамическое ценообразование ───────────────────────────────────────────────
+
+class DynamicPricingConfig(models.Model):
+    """Синглтон-конфиг для динамического ценообразования заданий."""
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Включить динамические цены",
+        help_text="Если включено — стоимость задания уменьшается с каждым новым решением.",
+    )
+    decay_per_solve = models.PositiveIntegerField(
+        default=5,
+        verbose_name="Снижение за каждое решение (очки)",
+        help_text="На сколько очков снижается цена задания за каждое новое решение.",
+    )
+    min_percent = models.PositiveIntegerField(
+        default=20,
+        verbose_name="Минимальная цена (% от базовой)",
+        help_text="Минимальная цена задания в процентах от базовой стоимости (1–100). Например, 20 = не ниже 20% от базы.",
+    )
+
+    class Meta:
+        verbose_name = "Настройки динамических цен"
+        verbose_name_plural = "Настройки динамических цен"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # singleton
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_config(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 
 
 # ─── Вспомогательные функции для tasks.json ────────────────────────────────────
