@@ -7,6 +7,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseForbidden
 from django.contrib.auth import logout as auth_logout
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from ctf.models import Task
@@ -46,6 +47,7 @@ def task2(request):
     return response
 
 
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def task3(request):
     if request.method == "GET":
@@ -56,6 +58,7 @@ def task3(request):
     return HttpResponse("<h1>Wrong data, try again!</h1>")
 
 
+@csrf_exempt
 def task4(request):
     if request.COOKIES.get("xorg_worship_flag_for_you") == "true":
         return HttpResponse(_get_flag(4))
