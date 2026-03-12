@@ -1716,43 +1716,61 @@
     function buildSolveChart(profileVal) {
       const tasks = profileVal?.solved_tasks;
       if (!tasks || tasks.length === 0) return null;
-      const W = 560, H = 130;
-      const padL = 44, padR = 14, padT = 10, padB = 28;
+      const W = 580, H = 185;
+      const padL = 50, padR = 20, padT = 18, padB = 38;
       const cW = W - padL - padR, cH = H - padT - padB;
+
       const dates = tasks.map(t => new Date(t.solved_at).getTime());
       const minDate = Math.min(...dates);
-      const maxDate = Math.max(Date.now(), ...dates);
-      const dRange = maxDate - minDate || 1;
+      const lastDate = Math.max(...dates);
+      const extend = Math.max((lastDate - minDate) * 0.08, 3600000 * 1.5);
+      const maxDate = lastDate + extend;
+      const dRange = maxDate - minDate || 86400000;
       const maxScore = tasks[tasks.length - 1].cumulative_score || 1;
+
       const cx = d => padL + (d - minDate) / dRange * cW;
       const cy = s => padT + cH - (s / maxScore) * cH;
-      const pts = [[cx(minDate), cy(0)]];
-      let prev = 0;
+
+      const R = 6;
+      let segs = `M ${cx(minDate).toFixed(1)},${cy(0).toFixed(1)}`;
+      let prev = 0, prevX = cx(minDate);
       for (const t of tasks) {
-        const d = new Date(t.solved_at).getTime();
-        pts.push([cx(d), cy(prev)]);
-        pts.push([cx(d), cy(t.cumulative_score)]);
-        prev = t.cumulative_score;
+        const x = cx(new Date(t.solved_at).getTime());
+        const y0 = cy(prev), y1 = cy(t.cumulative_score);
+        const dy = y0 - y1, dx = x - prevX;
+        const r = Math.max(0, Math.min(R, dy / 2.2, dx / 2.2));
+        if (r < 0.8) {
+          segs += ` H ${x.toFixed(1)} V ${y1.toFixed(1)}`;
+        } else {
+          segs += ` H ${(x - r).toFixed(1)} Q ${x.toFixed(1)},${y0.toFixed(1)} ${x.toFixed(1)},${(y0 - r).toFixed(1)} V ${(y1 + r).toFixed(1)} Q ${x.toFixed(1)},${y1.toFixed(1)} ${(x + r).toFixed(1)},${y1.toFixed(1)}`;
+        }
+        prev = t.cumulative_score; prevX = x;
       }
-      pts.push([cx(maxDate), cy(prev)]);
-      const line = pts.map(p => p.join(',')).join(' ');
-      const area = [
-        [cx(minDate), cy(0)],
-        ...pts.slice(1),
-        [cx(maxDate), cy(0)]
-      ].map(p => p.join(',')).join(' ');
+      segs += ` H ${cx(maxDate).toFixed(1)}`;
+
+      const linePath = segs;
+      const areaPath = segs + ` V ${cy(0).toFixed(1)} H ${cx(minDate).toFixed(1)} Z`;
+
       const dots = tasks.map(t => ({
         x: cx(new Date(t.solved_at).getTime()),
         y: cy(t.cumulative_score),
         name: t.name,
-        pts: t.points
+        pts: t.points,
+        score: t.cumulative_score,
       }));
-      const fmt = d => new Date(d).toLocaleDateString('ru', { day: 'numeric', month: 'short' });
-      return {
-        W, H, padL, padR, padT, padB, cH, line, area, dots, maxScore,
-        xL: [{ x: cx(minDate), label: fmt(minDate) }, { x: cx(maxDate), label: fmt(maxDate) }],
-        yL: [{ y: cy(0), lbl: '0' }, { y: cy(maxScore), lbl: String(maxScore) }]
-      };
+
+      const gridLines = [0, 0.25, 0.5, 0.75, 1].map(frac => {
+        const score = Math.round(maxScore * frac);
+        return { y: cy(score), lbl: score >= 1000 ? (score / 1000).toFixed(1) + 'k' : String(score) };
+      });
+
+      const fmt = ts => new Date(ts).toLocaleDateString('ru', { day: 'numeric', month: 'short' });
+      const xLabels = [0, 0.5, 1].map(frac => ({
+        x: cx(minDate + dRange * frac),
+        label: fmt(minDate + dRange * frac),
+      }));
+
+      return { W, H, padL, padR, padT, padB, cH, linePath, areaPath, dots, gridLines, xLabels };
     }
 
     /* ─────────────────── STORE ─────────────────── */
@@ -2776,24 +2794,36 @@
         <!-- Progress chart -->
         <div v-if="solveChart" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:20px;">
           <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
-          <div style="padding:12px 16px 4px;">
-            <svg :viewBox="'0 0 ' + solveChart.W + ' ' + solveChart.H" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+          <div style="padding:12px 16px 8px;">
+            <svg :viewBox="'0 0 '+solveChart.W+' '+solveChart.H" style="width:100%;height:auto;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="profGrad" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
-                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.42"/>
+                  <stop offset="70%" stop-color="#6366f1" stop-opacity="0.08"/>
+                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
                 </linearGradient>
               </defs>
-              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
-              <line :x1="solveChart.padL" :y1="solveChart.H - solveChart.padB" :x2="solveChart.W - solveChart.padR" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
-              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.W - solveChart.padR" :y2="solveChart.padT" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3,5"/>
-              <polygon :points="solveChart.area" fill="url(#profGrad)"/>
-              <polyline :points="solveChart.line" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="miter" stroke-linecap="square"/>
-              <circle v-for="(d,i) in solveChart.dots" :key="i" :cx="d.x" :cy="d.y" r="3.5" fill="#6366f1" stroke="rgba(11,15,23,.9)" stroke-width="1.5">
-                <title>{{ d.name }} (+{{ d.pts }} pts)</title>
+              <!-- y grid -->
+              <line v-for="g in solveChart.gridLines" :key="'yg'+g.lbl" :x1="solveChart.padL" :y1="g.y" :x2="solveChart.W-solveChart.padR" :y2="g.y" stroke="rgba(255,255,255,.055)" stroke-width="1"/>
+              <!-- axes -->
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H-solveChart.padB+1" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.H-solveChart.padB" :x2="solveChart.W-solveChart.padR" :y2="solveChart.H-solveChart.padB" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+              <!-- area -->
+              <path :d="solveChart.areaPath" fill="url(#profGrad)"/>
+              <!-- glow -->
+              <path :d="solveChart.linePath" fill="none" stroke="rgba(99,102,241,.22)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- line -->
+              <path :d="solveChart.linePath" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- dot halo -->
+              <circle v-for="(d,i) in solveChart.dots" :key="'h'+i" :cx="d.x" :cy="d.y" r="6" fill="rgba(99,102,241,.18)"/>
+              <!-- dots -->
+              <circle v-for="(d,i) in solveChart.dots" :key="i" :cx="d.x" :cy="d.y" r="3.5" fill="#818cf8" stroke="#0b0f17" stroke-width="1.5">
+                <title>{{ d.name }} (+{{ d.pts }} pts · итого {{ d.score }})</title>
               </circle>
-              <text v-for="l in solveChart.xL" :key="l.x" :x="l.x" :y="solveChart.H - 6" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="middle">{{ l.label }}</text>
-              <text v-for="l in solveChart.yL" :key="l.y" :x="solveChart.padL - 5" :y="l.y + 3" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="end">{{ l.lbl }}</text>
+              <!-- y labels -->
+              <text v-for="g in solveChart.gridLines" :key="'yl'+g.lbl" :x="solveChart.padL-6" :y="g.y+3.5" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="end">{{ g.lbl }}</text>
+              <!-- x labels -->
+              <text v-for="l in solveChart.xLabels" :key="l.x" :x="l.x" :y="solveChart.H-10" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="middle">{{ l.label }}</text>
             </svg>
           </div>
         </div>
@@ -2893,24 +2923,36 @@
         <!-- Progress chart -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:16px;">
           <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
-          <div v-if="solveChart" style="padding:12px 16px 4px;">
-            <svg :viewBox="'0 0 ' + solveChart.W + ' ' + solveChart.H" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+          <div v-if="solveChart" style="padding:12px 16px 8px;">
+            <svg :viewBox="'0 0 '+solveChart.W+' '+solveChart.H" style="width:100%;height:auto;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="pubProfGrad" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
-                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.42"/>
+                  <stop offset="70%" stop-color="#6366f1" stop-opacity="0.08"/>
+                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
                 </linearGradient>
               </defs>
-              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
-              <line :x1="solveChart.padL" :y1="solveChart.H - solveChart.padB" :x2="solveChart.W - solveChart.padR" :y2="solveChart.H - solveChart.padB" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
-              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.W - solveChart.padR" :y2="solveChart.padT" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3,5"/>
-              <polygon :points="solveChart.area" fill="url(#pubProfGrad)"/>
-              <polyline :points="solveChart.line" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="miter" stroke-linecap="square"/>
-              <circle v-for="(d,i) in solveChart.dots" :key="i" :cx="d.x" :cy="d.y" r="3.5" fill="#6366f1" stroke="rgba(11,15,23,.9)" stroke-width="1.5">
-                <title>{{ d.name }} (+{{ d.pts }} pts)</title>
+              <!-- y grid -->
+              <line v-for="g in solveChart.gridLines" :key="'yg'+g.lbl" :x1="solveChart.padL" :y1="g.y" :x2="solveChart.W-solveChart.padR" :y2="g.y" stroke="rgba(255,255,255,.055)" stroke-width="1"/>
+              <!-- axes -->
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H-solveChart.padB+1" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.H-solveChart.padB" :x2="solveChart.W-solveChart.padR" :y2="solveChart.H-solveChart.padB" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+              <!-- area -->
+              <path :d="solveChart.areaPath" fill="url(#pubProfGrad)"/>
+              <!-- glow -->
+              <path :d="solveChart.linePath" fill="none" stroke="rgba(99,102,241,.22)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- line -->
+              <path :d="solveChart.linePath" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- dot halo -->
+              <circle v-for="(d,i) in solveChart.dots" :key="'h'+i" :cx="d.x" :cy="d.y" r="6" fill="rgba(99,102,241,.18)"/>
+              <!-- dots -->
+              <circle v-for="(d,i) in solveChart.dots" :key="i" :cx="d.x" :cy="d.y" r="3.5" fill="#818cf8" stroke="#0b0f17" stroke-width="1.5">
+                <title>{{ d.name }} (+{{ d.pts }} pts · итого {{ d.score }})</title>
               </circle>
-              <text v-for="l in solveChart.xL" :key="l.x" :x="l.x" :y="solveChart.H - 6" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="middle">{{ l.label }}</text>
-              <text v-for="l in solveChart.yL" :key="l.y" :x="solveChart.padL - 5" :y="l.y + 3" fill="rgba(229,231,235,.35)" font-size="9" text-anchor="end">{{ l.lbl }}</text>
+              <!-- y labels -->
+              <text v-for="g in solveChart.gridLines" :key="'yl'+g.lbl" :x="solveChart.padL-6" :y="g.y+3.5" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="end">{{ g.lbl }}</text>
+              <!-- x labels -->
+              <text v-for="l in solveChart.xLabels" :key="l.x" :x="l.x" :y="solveChart.H-10" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="middle">{{ l.label }}</text>
             </svg>
           </div>
           <div v-else style="padding:14px 18px;font-size:13px;color:rgba(229,231,235,.35);">Нет данных</div>
