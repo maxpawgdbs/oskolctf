@@ -1721,17 +1721,17 @@
       const padL = 52, padR = 20, padT = 20, padB = 46;
       const cW = W - padL - padR, cH = H - padT - padB;
 
-      const dates    = tasks.map(t => new Date(t.solved_at).getTime());
-      const minDate  = Math.min(...dates);
+      const dates = tasks.map(t => new Date(t.solved_at).getTime());
+      const minDate = Math.min(...dates);
       const lastDate = Math.max(...dates);
-      const rangeMs  = lastDate - minDate || 86400000;
-      const extend   = Math.max(rangeMs * 0.08, 3600000 * 3);
-      const maxDate  = lastDate + extend;
-      const dRange   = maxDate - minDate;
+      const rangeMs = lastDate - minDate || 86400000;
+      const extend = Math.max(rangeMs * 0.08, 3600000 * 3);
+      const maxDate = lastDate + extend;
+      const dRange = maxDate - minDate;
       const maxScore = tasks[tasks.length - 1].cumulative_score || 1;
 
       const cx = ts => padL + (ts - minDate) / dRange * cW;
-      const cy = s  => padT + cH - (s / maxScore) * cH;
+      const cy = s => padT + cH - (s / maxScore) * cH;
 
       // Points: (minDate,0), each solve, (maxDate, lastScore)
       const pts = [{ x: cx(minDate), y: cy(0) }];
@@ -1742,10 +1742,10 @@
       const n = pts.length;
       const dxArr = [], slopeArr = [], m = new Array(n);
       for (let i = 0; i < n - 1; i++) {
-        dxArr[i]    = pts[i + 1].x - pts[i].x;
+        dxArr[i] = pts[i + 1].x - pts[i].x;
         slopeArr[i] = dxArr[i] > 0.5 ? (pts[i + 1].y - pts[i].y) / dxArr[i] : 0;
       }
-      m[0]     = slopeArr[0];
+      m[0] = slopeArr[0];
       m[n - 1] = slopeArr[n - 2];
       for (let i = 1; i < n - 1; i++) {
         m[i] = slopeArr[i - 1] * slopeArr[i] <= 0 ? 0 : (slopeArr[i - 1] + slopeArr[i]) / 2;
@@ -1760,12 +1760,12 @@
       let path = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
       for (let i = 0; i < n - 1; i++) {
         const h = dxArr[i];
-        path += ` C ${(pts[i].x + h/3).toFixed(2)},${(pts[i].y + m[i]*h/3).toFixed(2)}`
-               + ` ${(pts[i+1].x - h/3).toFixed(2)},${(pts[i+1].y - m[i+1]*h/3).toFixed(2)}`
-               + ` ${pts[i+1].x.toFixed(2)},${pts[i+1].y.toFixed(2)}`;
+        path += ` C ${(pts[i].x + h / 3).toFixed(2)},${(pts[i].y + m[i] * h / 3).toFixed(2)}`
+          + ` ${(pts[i + 1].x - h / 3).toFixed(2)},${(pts[i + 1].y - m[i + 1] * h / 3).toFixed(2)}`
+          + ` ${pts[i + 1].x.toFixed(2)},${pts[i + 1].y.toFixed(2)}`;
       }
       const linePath = path;
-      const areaPath = path + ` L ${pts[n-1].x.toFixed(2)},${cy(0).toFixed(2)} L ${pts[0].x.toFixed(2)},${cy(0).toFixed(2)} Z`;
+      const areaPath = path + ` L ${pts[n - 1].x.toFixed(2)},${cy(0).toFixed(2)} L ${pts[0].x.toFixed(2)},${cy(0).toFixed(2)} Z`;
 
       // Dots for tooltip
       const dots = tasks.map(t => ({
@@ -1782,18 +1782,18 @@
       // X grid — adaptive interval by day range
       const hourMs = 3600000, dayMs = 86400000;
       let tickMs;
-      if      (dRange <= dayMs)      tickMs = 4  * hourMs;
-      else if (dRange <= 3*dayMs)    tickMs = 12 * hourMs;
-      else if (dRange <= 14*dayMs)   tickMs = dayMs;
-      else if (dRange <= 60*dayMs)   tickMs = 2  * dayMs;
-      else                           tickMs = 7  * dayMs;
+      if (dRange <= dayMs) tickMs = 4 * hourMs;
+      else if (dRange <= 3 * dayMs) tickMs = 12 * hourMs;
+      else if (dRange <= 14 * dayMs) tickMs = dayMs;
+      else if (dRange <= 60 * dayMs) tickMs = 2 * dayMs;
+      else tickMs = 7 * dayMs;
 
       const startTick = Math.ceil(minDate / tickMs) * tickMs;
       const gridX = [];
       for (let ts = startTick; ts <= maxDate; ts += tickMs) {
         const xPos = cx(ts);
         if (xPos < padL + 4 || xPos > W - padR - 2) continue;
-        const date  = new Date(ts);
+        const date = new Date(ts);
         const label = tickMs >= dayMs
           ? date.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
           : date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
@@ -3022,13 +3022,13 @@
         const dpConfig = reactive({ enabled: false, decay_per_solve: 5, min_percent: 20 });
         const dpPreview = ref([]);
         const dpSaving = ref(false);
-        const auditLog     = ref([]);
-        const auditTotal   = ref(0);
-        const auditPage    = ref(1);
-        const auditFilter  = ref('');
+        const auditLog = ref([]);
+        const auditTotal = ref(0);
+        const auditPage = ref(1);
+        const auditFilter = ref('');
         const auditChoices = ref([]);
         const auditLoading = ref(false);
-        const auditDetail  = ref(null);
+        const auditDetail = ref(null);
 
         const FIELD_LABELS = {
           name: 'Название', category: 'Категория', difficulty: 'Сложность',
@@ -3167,7 +3167,7 @@
             if (auditFilter.value) params.set('action', auditFilter.value);
             const d = await fetch('/api/admin/audit-log?' + params).then(r => r.json()).catch(() => null);
             if (d?.ok) {
-              auditLog.value   = d.entries;
+              auditLog.value = d.entries;
               auditTotal.value = d.total;
               if (d.action_choices) auditChoices.value = d.action_choices;
             }
@@ -3181,7 +3181,7 @@
           if (!store.user.is_staff) { router.push('/'); return; }
           if (!store.csrf) await store.refreshCsrf();
           await Promise.all([loadMe(), loadStats(), loadAnnouncement()]);
-          postJSON('/api/admin/audit-entry', {}).catch(() => {});
+          postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
         return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
