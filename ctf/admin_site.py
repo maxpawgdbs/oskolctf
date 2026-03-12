@@ -12,7 +12,7 @@ from django.utils.html import format_html
 from django.shortcuts import render
 from django import forms
 
-from ctf.models import User, Task, Solve, DynamicPricingConfig, load_tasks_json, sync_tasks_from_json
+from ctf.models import User, Task, Solve, DynamicPricingConfig, AuditLog, load_tasks_json, sync_tasks_from_json
 
 
 # ── Кастомный AdminSite ───────────────────────────────────────────────────────────
@@ -233,6 +233,21 @@ class SolveAdmin(admin.ModelAdmin):
     list_filter = ("task__category",)
     search_fields = ("user__username", "task__name")
     date_hierarchy = "solved_at"
+
+
+@admin.register(AuditLog, site=ctf_admin_site)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display    = ("timestamp", "actor", "action", "target_user", "target_task", "ip")
+    list_filter     = ("action",)
+    search_fields   = ("actor__username", "target_user__username", "target_task__name", "ip")
+    readonly_fields = ("timestamp", "actor", "action", "target_user", "target_task", "details", "ip")
+    date_hierarchy  = "timestamp"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 # ── Подключаем ctf_admin_site к стандартному admin (чтобы /admin/ работал) ────────

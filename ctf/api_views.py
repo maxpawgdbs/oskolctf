@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required as dj_login_required
 
-from ctf.models import User, Task, Solve, DynamicPricingConfig, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
+from ctf.models import User, Task, Solve, DynamicPricingConfig, AuditLog, log_action, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
 
 
 def _json_error(msg, status=400):
@@ -66,6 +66,7 @@ class ApiLogin(View):
         if user is None:
             return _json_error("Неверный логин или пароль")
         login(request, user)
+        log_action(request, 'login', actor=user, details={'username': user.username, 'is_staff': user.is_staff})
         return JsonResponse({
             "ok": True,
             "user": {
@@ -101,6 +102,7 @@ class ApiRegister(View):
             return _json_error("Имя уже занято")
         user = User.objects.create_user(username=username, password=password)
         login(request, user)
+        log_action(request, 'register', actor=user, details={'username': user.username})
         return JsonResponse({
             "ok": True,
             "user": {
@@ -118,6 +120,8 @@ class ApiRegister(View):
 @method_decorator(csrf_exempt, name="dispatch")
 class ApiLogout(View):
     def post(self, request):
+        _uname = request.user.username if request.user.is_authenticated else None
+        log_action(request, 'logout', details={'username': _uname})
         logout(request)
         return JsonResponse({"ok": True})
 
@@ -219,6 +223,7 @@ class ApiSubmit(View):
                 task = t
                 break
         if task is None:
+            log_action(request, 'submit_wrong', details={'username': request.user.username, 'flag_len': len(raw_flag)})
             return JsonResponse({"ok": False, "error": "Неверный флаг", "category": "error"})
         current_pts = task.get_current_points()
         solve, created = Solve.objects.get_or_create(
@@ -232,6 +237,10 @@ class ApiSubmit(View):
                 "error": f"{task.name} уже решён",
                 "category": "info",
             })
+        log_action(request, 'submit_correct', target_task=task, details={
+            'task_id': task.task_id, 'task_name': task.name,
+            'category': task.category, 'points_awarded': current_pts, 'base_points': task.points,
+        })
         return JsonResponse({
             "ok": True,
             "message": f"Засчитано! {task.name} (+{current_pts} pts)",
@@ -337,6 +346,8 @@ class ApiProfileUpdate(View):
             return _json_error("Отображаемое имя: не больше 32 символов")
         if len(bio) > 300:
             return _json_error("О себе: не больше 300 символов")
+        _old_display = user.display_name or ''
+        _old_bio = user.bio or ''
         user.display_name = display_name
         user.bio = bio
         if avatar_file:
@@ -356,6 +367,15 @@ class ApiProfileUpdate(View):
                     pass
             user.avatar = avatar_file
         user.save()
+        _pf_changes = {}
+        if _old_display != (display_name or ''):
+            _pf_changes['display_name'] = {'from': _old_display, 'to': display_name or ''}
+        if _old_bio != (bio or ''):
+            _pf_changes['bio'] = {'from': _old_bio, 'to': bio or ''}
+        log_action(request, 'profile_update', actor=user, details={
+            'changes': _pf_changes,
+            'avatar_changed': bool(avatar_file),
+        })
         return JsonResponse({
             "ok": True,
             "display_name": user.get_display_name(),
@@ -485,6 +505,11 @@ class api_admin_toggle_staff(View):
             return _json_error("Нельзя изменить права суперюзера")
         u.is_staff = not u.is_staff
         u.save(update_fields=["is_staff"])
+        _act = 'grant_staff' if u.is_staff else 'revoke_staff'
+        log_action(request, _act, target_user=u, details={
+            'username': u.username, 'display_name': u.get_display_name(),
+            'is_staff': u.is_staff, 'changed_by': request.user.username,
+        })
         return JsonResponse({"ok": True, "is_staff": u.is_staff})
 
 
@@ -530,6 +555,9 @@ class ApiAdminTaskSave(View):
             data = json.loads(request.body)
         except Exception:
             return _json_error("Invalid JSON")
+        # Снимок для журнала (до изменений)
+        _LFIELDS = ('name', 'category', 'difficulty', 'description', 'points', 'flag', 'url', 'active', 'hide_open_button', 'author', 'author_url')
+        _old = {f: getattr(task, f) for f in _LFIELDS}
         if "active" in data:
             task.active = bool(data["active"])
         if "points" in data:
@@ -558,6 +586,14 @@ class ApiAdminTaskSave(View):
             task.author_url = (data["author_url"] or "").strip()[:200]
         task.save()
         dump_tasks_to_json()
+        _changes = {}
+        for _f in _LFIELDS:
+            _nv = getattr(task, _f)
+            if _old[_f] != _nv:
+                _changes[_f] = {'from': '[скрыт]', 'to': '[изменён]'} if _f == 'flag' else {'from': _old[_f], 'to': _nv}
+        log_action(request, 'task_edit', target_task=task, details={
+            'task_id': task.task_id, 'name': task.name, 'changes': _changes,
+        })
         return JsonResponse({"ok": True})
 
 
@@ -606,6 +642,11 @@ class ApiAdminTaskCreate(View):
         )
         task.save()
         dump_tasks_to_json()
+        log_action(request, 'task_create', target_task=task, details={
+            'task_id': task.task_id, 'name': task.name, 'category': task.category,
+            'difficulty': task.difficulty, 'points': task.points,
+            'active': task.active, 'author': task.author or None,
+        })
         return JsonResponse({"ok": True, "task_id": task.task_id, "name": task.name})
 
 
@@ -620,6 +661,10 @@ def api_admin_task_delete(request, task_id):
         task = Task.objects.get(task_id=task_id)
     except Task.DoesNotExist:
         return _json_error("Задача не найдена", 404)
+    log_action(request, 'task_delete', details={
+        'task_id': task_id, 'name': task.name, 'category': task.category,
+        'points': task.points, 'solve_count': task.solve_count, 'active': task.active,
+    })
     task.delete()
     dump_tasks_to_json()
     return JsonResponse({"ok": True})
@@ -630,7 +675,14 @@ def api_admin_task_clear_solves(request, task_id):
     err = _require_staff(request)
     if err:
         return err
+    try:
+        task = Task.objects.get(task_id=task_id)
+    except Task.DoesNotExist:
+        task = None
     n = Solve.objects.filter(task__task_id=task_id).delete()[0]
+    log_action(request, 'clear_task_solves', target_task=task, details={
+        'task_id': task_id, 'task_name': task.name if task else '?', 'deleted_count': n,
+    })
     return JsonResponse({"ok": True, "deleted": n})
 
 
@@ -642,6 +694,10 @@ def api_admin_reset_solves(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "POST only"}, status=405)
     n = Solve.objects.all().delete()[0]
+    log_action(request, 'reset_all_solves', details={
+        'deleted_count': n,
+        'reset_by': request.user.username if request.user.is_authenticated else None,
+    })
     return JsonResponse({"ok": True, "deleted": n})
 
 
@@ -661,6 +717,10 @@ class ApiAdminSetAnnouncement(View):
             cache.set("site_announcement", text, timeout=None)
         else:
             cache.delete("site_announcement")
+        log_action(request, 'set_announcement', details={
+            'text': text or None,
+            'cleared': not bool(text),
+        })
         return JsonResponse({"ok": True, "text": text})
 
 
@@ -694,6 +754,7 @@ def api_admin_dynamic_pricing(request):
             data = json.loads(request.body)
         except Exception:
             return _json_error("Invalid JSON")
+        _old_dp = {'enabled': cfg.enabled, 'decay_per_solve': cfg.decay_per_solve, 'min_percent': cfg.min_percent}
         if "enabled" in data:
             cfg.enabled = bool(data["enabled"])
         if "decay_per_solve" in data:
@@ -712,7 +773,15 @@ def api_admin_dynamic_pricing(request):
             if not (1 <= pct <= 100):
                 return _json_error("min_percent должен быть от 1 до 100")
             cfg.min_percent = pct
+        _dp_changes = {}
+        if _old_dp['enabled'] != cfg.enabled:
+            _dp_changes['enabled'] = {'from': _old_dp['enabled'], 'to': cfg.enabled}
+        if _old_dp['decay_per_solve'] != cfg.decay_per_solve:
+            _dp_changes['decay_per_solve'] = {'from': _old_dp['decay_per_solve'], 'to': cfg.decay_per_solve}
+        if _old_dp['min_percent'] != cfg.min_percent:
+            _dp_changes['min_percent'] = {'from': _old_dp['min_percent'], 'to': cfg.min_percent}
         cfg.save()
+        log_action(request, 'dynamic_pricing_change', details={'changes': _dp_changes})
         return JsonResponse({
             "ok": True,
             "enabled": cfg.enabled,
@@ -780,3 +849,61 @@ class ApiAdminTaskUploadFile(View):
         except Exception as e:
             import traceback
             return _json_error(f"Ошибка сервера: {traceback.format_exc()[-300:]}", 500)
+
+
+@csrf_exempt
+def api_admin_audit_log(request):
+    """GET: журнал действий с пагинацией и фильтрацией по типу действия."""
+    err = _require_staff(request)
+    if err:
+        return err
+    try:
+        page  = max(1, int(request.GET.get('page', 1)))
+        limit = min(100, max(10, int(request.GET.get('limit', 50))))
+    except (ValueError, TypeError):
+        page, limit = 1, 50
+    action_filter = request.GET.get('action', '').strip()
+
+    qs = AuditLog.objects.select_related('actor', 'target_user', 'target_task').order_by('-timestamp')
+    if action_filter:
+        qs = qs.filter(action=action_filter)
+
+    total  = qs.count()
+    offset = (page - 1) * limit
+    entries = qs[offset:offset + limit]
+
+    return JsonResponse({
+        'ok':    True,
+        'total': total,
+        'page':  page,
+        'limit': limit,
+        'entries': [
+            {
+                'id':          e.id,
+                'timestamp':   e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'actor':       e.actor.username if e.actor else None,
+                'action':      e.action,
+                'action_label': dict(AuditLog.ACTION_CHOICES).get(e.action, e.action),
+                'target_user': e.target_user.username if e.target_user else None,
+                'target_task': e.target_task.name    if e.target_task else None,
+                'details':     e.details,
+                'ip':          e.ip,
+            }
+            for e in entries
+        ],
+        'action_choices': [{'value': '', 'label': 'Все'}] + [
+            {'value': v, 'label': l} for v, l in AuditLog.ACTION_CHOICES
+        ],
+    })
+
+
+@csrf_exempt
+def api_admin_audit_entry(request):
+    """POST: клиент сигнализирует о входе в панель администратора."""
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
+    err = _require_staff(request)
+    if err:
+        return err
+    log_action(request, 'admin_login', actor=request.user)
+    return JsonResponse({"ok": True})

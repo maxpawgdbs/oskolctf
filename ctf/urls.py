@@ -50,4 +50,6 @@ urlpatterns = [
     path("api/admin/reset-solves", api_views.api_admin_reset_solves),
     path("api/admin/set-announcement", api_views.ApiAdminSetAnnouncement.as_view()),
     path("api/admin/dynamic-pricing", api_views.api_admin_dynamic_pricing),
+    path("api/admin/audit-log", api_views.api_admin_audit_log),
+    path("api/admin/audit-entry", api_views.api_admin_audit_entry),
 ]

@@ -173,6 +173,77 @@ class DynamicPricingConfig(models.Model):
         return obj
 
 
+# ─── Журнал действий ────────────────────────────────────────────────────────────
+
+class AuditLog(models.Model):
+    """Запись в журнале административных и пользовательских действий."""
+
+    ACTION_CHOICES = [
+        ('register',         'Регистрация'),
+        ('login',            'Вход'),
+        ('logout',           'Выход'),
+        ('submit_correct',   'Флаг принят'),
+        ('submit_wrong',     'Неверный флаг'),
+        ('task_create',      'Создание задания'),
+        ('task_edit',        'Редактирование задания'),
+        ('task_delete',      'Удаление задания'),
+        ('grant_staff',      'Выдача прав admin'),
+        ('revoke_staff',     'Отзыв прав admin'),
+        ('reset_all_solves', 'Сброс всех решений'),
+        ('clear_task_solves','Сброс решений задания'),
+        ('profile_update',         'Смена профиля'),
+        ('set_announcement',       'Баннер объявления'),
+        ('dynamic_pricing_change', 'Динамические цены'),
+        ('admin_login',            'Вход в панель admin'),
+    ]
+
+    timestamp   = models.DateTimeField(default=timezone.now, verbose_name='Время')
+    actor       = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='audit_logs', verbose_name='Автор действия',
+    )
+    action      = models.CharField(max_length=64, choices=ACTION_CHOICES, verbose_name='Действие')
+    target_user = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='target_audit_logs', verbose_name='Целевой пользователь',
+    )
+    target_task = models.ForeignKey(
+        'Task', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='audit_logs', verbose_name='Целевое задание',
+    )
+    details     = models.JSONField(default=dict, blank=True, verbose_name='Детали')
+    ip          = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
+
+    class Meta:
+        verbose_name          = 'Запись журнала'
+        verbose_name_plural   = 'Журнал действий'
+        ordering              = ['-timestamp']
+
+    def __str__(self):
+        return f"[{self.timestamp:%Y-%m-%d %H:%M}] {self.actor} → {self.action}"
+
+
+def log_action(request_or_none, action: str, actor=None, target_user=None, target_task=None, details: dict = None):
+    """Создаёт запись в журнале. Никогда не роняет основной поток."""
+    ip = None
+    try:
+        if request_or_none is not None:
+            xff = request_or_none.META.get('HTTP_X_FORWARDED_FOR', '')
+            ip = (xff.split(',')[0].strip() or request_or_none.META.get('REMOTE_ADDR', ''))[:39] or None
+            if actor is None and hasattr(request_or_none, 'user') and request_or_none.user.is_authenticated:
+                actor = request_or_none.user
+        AuditLog.objects.create(
+            actor=actor,
+            action=action,
+            target_user=target_user,
+            target_task=target_task,
+            details=details or {},
+            ip=ip,
+        )
+    except Exception:
+        pass
+
+
 # ─── Вспомогательные функции для tasks.json ────────────────────────────────────
 
 def load_tasks_json() -> list:
