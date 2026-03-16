@@ -3144,7 +3144,29 @@
           try { let parsed; try { parsed = JSON.parse(importText.value); } catch { store.toast('Неверный JSON', 'err'); return; } const d = await postJSON('/api/admin/sync-tasks', parsed).then(r => r.json()); importResult.value = d; if (d.ok) { store.toast('Создано: ' + d.created + ', обновлено: ' + d.updated, 'ok'); tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
           finally { importing.value = false; }
         }
-        async function syncFromFile() { const d = await fetch('/api/admin/sync-tasks', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, credentials: 'same-origin' }).then(r => r.json()); if (d.ok) { store.toast('Синхронизировано: +' + d.created + ' / ~' + d.updated, 'ok'); tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+        async function syncFromFile() {
+          importing.value = true;
+          importResult.value = null;
+          try {
+            const d = await fetch('/api/admin/sync-tasks', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, credentials: 'same-origin' }).then(r => r.json());
+            importResult.value = d;
+            if (d.ok) {
+              store.toast('Жесткая синхронизация: +' + d.created + ' / ~' + d.updated, 'ok');
+              tasks.value = [];
+              await Promise.all([loadStats(), loadTasks()]);
+            } else {
+              store.toast(d.error || 'Ошибка', 'err');
+            }
+          } finally {
+            importing.value = false;
+          }
+        }
+        function confirmHardSyncFromFile() {
+          modal.title = 'Жесткая синхронизация';
+          modal.text = 'Перечитать task(s).json и перезаписать задания в БД из файла?';
+          modal.action = syncFromFile;
+          modal.show = true;
+        }
         function confirmResetAll() { modal.title = '☢ Ядерный сброс'; modal.text = 'Удалить ВСЕ решения у всех пользователей? Это действие необратимо.'; modal.action = resetAllSolves; modal.show = true; }
         async function resetAllSolves() { const d = await postJSON('/api/admin/reset-solves', {}).then(r => r.json()); if (d.ok) { store.toast('Сброшено ' + d.deleted + ' решений', 'ok'); users.value = []; tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
         function goSettings() { page.value = 'settings'; loadAnnouncement(); }
@@ -3184,7 +3206,7 @@
           postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
+        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -3231,7 +3253,7 @@
               <div class="adm-quick-actions">
                 <div class="adm-qa-card" @click="goTasks"><div class="adm-qa-icon">⚑</div><div class="adm-qa-title">Задания</div><div class="adm-qa-desc">Управление заданиями</div></div>
                 <div class="adm-qa-card" @click="goUsers"><div class="adm-qa-icon">⊙</div><div class="adm-qa-title">Пользователи</div><div class="adm-qa-desc">Список и права</div></div>
-                <div class="adm-qa-card" @click="syncFromFile"><div class="adm-qa-icon">↻</div><div class="adm-qa-title">Синх. tasks.json</div><div class="adm-qa-desc">Обновить из файла</div></div>
+                <div class="adm-qa-card" @click="confirmHardSyncFromFile"><div class="adm-qa-icon">↻</div><div class="adm-qa-title">Жесткий sync JSON</div><div class="adm-qa-desc">Перезаписать из task(s).json</div></div>
               </div>
             </div>
           </div>
@@ -3314,7 +3336,7 @@
               <textarea class="adm-input" style="min-height:220px;font-family:ui-monospace,monospace;font-size:12px;" placeholder='[{"task_id":1,"name":"...","flag":"..."}]' v-model="importText"></textarea>
               <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
                 <button class="adm-btn primary" :disabled="!importText.trim() || importing" @click="doImport"><span v-if="importing" class="adm-spinner"></span><span v-else>↑ Загрузить</span></button>
-                <button class="adm-btn gray" @click="syncFromFile">↻ Синх. из tasks.json</button>
+                <button class="adm-btn gray" @click="confirmHardSyncFromFile">↻ Жестко синх. из task(s).json</button>
                 <span v-if="importResult" style="font-size:12px;font-weight:600;" :style="{color: importResult.ok ? '#4ade80' : '#f87171'}">{{ importResult.ok ? 'Создано: ' + importResult.created + ', обновлено: ' + importResult.updated : importResult.error }}</span>
               </div>
             </div>
@@ -3324,6 +3346,16 @@
         <!-- SETTINGS -->
         <div v-else-if="page === 'settings'">
           <div class="adm-section-row"><div class="adm-section-title">Настройки</div></div>
+          <div class="adm-card" style="margin-bottom:20px;">
+            <div class="adm-card-h"><div class="adm-card-title">↻ Синхронизация заданий</div></div>
+            <div class="adm-card-b">
+              <div style="font-size:12px;color:rgba(229,231,235,.55);margin-bottom:12px;">Принудительно перечитывает task(s).json и обновляет задания в базе данных.</div>
+              <button class="adm-btn gray" @click="confirmHardSyncFromFile" :disabled="importing">
+                <span v-if="importing" class="adm-spinner"></span>
+                <span v-else>↻ Жестко синхронизировать из task(s).json</span>
+              </button>
+            </div>
+          </div>
           <div class="adm-card" style="margin-bottom:20px;">
             <div class="adm-card-h"><div class="adm-card-title">📢 Баннер объявления</div></div>
             <div class="adm-card-b">

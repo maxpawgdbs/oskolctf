@@ -91,6 +91,15 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/board/"
 LOGOUT_REDIRECT_URL = "/"
 
-# Задачи — путь к tasks.json
-TASKS_FILE = os.environ.get("TASKS_FILE", str(BASE_DIR / "tasks.json"))
+# Задачи — путь к task.json/tasks.json.
+# Приоритет:
+# 1) TASKS_FILE из env
+# 2) task.json (если существует)
+# 3) tasks.json
+_task_json = BASE_DIR / "task.json"
+_tasks_json = BASE_DIR / "tasks.json"
+TASKS_FILE = os.environ.get(
+    "TASKS_FILE",
+    str(_task_json if _task_json.exists() else _tasks_json),
+)
 TASK_FILES_DIR = os.environ.get("TASK_FILES_DIR", str(BASE_DIR / "task"))

@@ -27,6 +27,15 @@ def _require_auth(request):
     return None
 
 
+def _sync_tasks_file_safe():
+    """Всегда подтягивает актуальные задания из task(s).json в БД."""
+    try:
+        sync_tasks_from_json()
+    except Exception:
+        # Не валим API из-за проблем чтения JSON.
+        pass
+
+
 # ── /api/me ──────────────────────────────────────────────────────────────────────
 
 def api_me(request):
@@ -132,6 +141,7 @@ def api_board(request):
     err = _require_auth(request)
     if err:
         return err
+    _sync_tasks_file_safe()
     user = request.user
 
     from django.db.models import Sum, Count
@@ -209,6 +219,7 @@ class ApiSubmit(View):
         err = _require_auth(request)
         if err:
             return err
+        _sync_tasks_file_safe()
         try:
             data = json.loads(request.body)
         except Exception:
@@ -254,6 +265,7 @@ class ApiSubmit(View):
 def api_task_file(request, task_id: int):
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "Not authenticated"}, status=401)
+    _sync_tasks_file_safe()
     try:
         task = Task.objects.get(task_id=task_id, active=True)
     except Task.DoesNotExist:
@@ -281,6 +293,7 @@ def api_profile(request, username: str):
     err = _require_auth(request)
     if err:
         return err
+    _sync_tasks_file_safe()
     try:
         u = User.objects.get(username__iexact=username)
     except User.DoesNotExist:
@@ -518,6 +531,7 @@ def api_admin_tasks(request):
     err = _require_staff(request)
     if err:
         return err
+    _sync_tasks_file_safe()
     from django.db.models import Count
     tasks = Task.objects.annotate(sc=Count("solves")).order_by("task_id")
     return JsonResponse({"ok": True, "tasks": [
@@ -732,6 +746,7 @@ def api_admin_dynamic_pricing(request):
         return err
     cfg = DynamicPricingConfig.get_config()
     if request.method == "GET":
+        _sync_tasks_file_safe()
         from django.db.models import Count
         tasks_preview = [
             {

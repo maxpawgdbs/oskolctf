@@ -271,6 +271,7 @@ def dump_tasks_to_json() -> None:
             "url": t.url,
             "active": t.active,
             "hide_open_button": t.hide_open_button,
+            "file": t.file,
             "author": t.author,
             "author_url": t.author_url,
         }
@@ -289,6 +290,7 @@ def sync_tasks_from_json(data: list | None = None) -> tuple[int, int]:
     created = updated = 0
     for item in data:
         tid = int(item["id"])
+        existing = Task.objects.filter(task_id=tid).first()
         defaults = {
             "name": item.get("name", ""),
             "category": item.get("category", "Разное"),
@@ -299,7 +301,8 @@ def sync_tasks_from_json(data: list | None = None) -> tuple[int, int]:
             "url": item.get("url", f"/task{tid}"),
             "active": bool(item.get("active", True)),
             "hide_open_button": bool(item.get("hide_open_button", False)),
-            "file": item.get("file", ""),
+            # Если в JSON нет ключа file (старый формат), не стираем уже загруженный файл.
+            "file": item["file"] if "file" in item else (existing.file if existing else ""),
             "author": item.get("author", ""),
             "author_url": item.get("author_url", ""),
         }
