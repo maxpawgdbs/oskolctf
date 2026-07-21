@@ -64,6 +64,14 @@ class SecurityControlTests(TestCase):
         self.assertTrue(SecurityBan.objects.filter(user=self.user, active=True).exists())
         self.assertEqual(victim.get("/api/me").status_code, 200)
         self.assertIsNone(victim.get("/api/me").json()["user"])
+        relogin, relogin_token = self.csrf_client()
+        blocked_login = self.post(
+            relogin, relogin_token, "/api/auth/login",
+            {"username": "player", "password": "StrongPlayerPass!42"},
+        )
+        self.assertEqual(blocked_login.status_code, 403)
+        self.assertEqual(blocked_login.json()["ban"]["kind_label"], "аккаунт")
+        self.assertEqual(blocked_login.json()["ban"]["reason"], "test")
 
     def test_superuser_can_reset_admin_password_and_sessions(self):
         staff_client = Client()
@@ -132,3 +140,8 @@ class SecurityControlTests(TestCase):
             HTTP_X_CLIENT_SIGNATURE="new-signature",
         )
         self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(blocked.json()["ban"]["kind_label"], "IP-адрес")
+        self.assertEqual(blocked.json()["ban"]["reason"], "abuse")
+        blocked_page = Client().get("/", REMOTE_ADDR="203.0.113.10")
+        self.assertContains(blocked_page, "IP-адрес", status_code=403)
+        self.assertContains(blocked_page, "abuse", status_code=403)

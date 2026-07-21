@@ -1703,6 +1703,75 @@
       text-transform: uppercase;
       letter-spacing: .06em;
     }
+
+    .adm-table-card { overflow-x: auto; }
+    .adm-security-note {
+      display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; padding: 14px 16px;
+      border: 1px solid rgba(99,102,241,.28); border-radius: 14px; background: rgba(99,102,241,.09);
+      color: #c7d2fe; font-size: 13px; line-height: 1.55;
+    }
+    .adm-security-note.danger { border-color: rgba(239,68,68,.28); background: rgba(239,68,68,.08); color: #fecaca; }
+    .adm-security-note strong { color: #fff; }
+    .adm-user-main { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+    .adm-user-meta { font-size: 12px; color: rgba(229,231,235,.66); line-height: 1.5; overflow-wrap: anywhere; }
+    .adm-user-actions { display: flex; gap: 8px; flex-wrap: wrap; min-width: 280px; }
+    .adm-user-actions .adm-btn-sm { min-height: 36px; padding: 8px 12px; }
+    .adm-ban-list { display: grid; gap: 7px; margin-top: 8px; }
+    .adm-ban-rule { padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(248,113,113,.22); background: rgba(239,68,68,.08); }
+    .adm-ban-rule-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; color: #fecaca; }
+    .adm-ban-rule-reason { margin-top: 3px; color: rgba(254,226,226,.72); font-size: 12px; font-weight: 500; }
+    .adm-modal-help { margin: 6px 0 14px; color: rgba(229,231,235,.62); font-size: 12px; line-height: 1.55; }
+    .adm-modal-warning { padding: 10px 12px; margin: 12px 0; border-radius: 10px; border: 1px solid rgba(251,191,36,.28); background: rgba(251,191,36,.09); color: #fde68a; font-size: 12px; line-height: 1.5; }
+    .adm-btn-sm:focus-visible, .adm-btn:focus-visible, .adm-input:focus-visible, .adm-nav-item:focus-visible {
+      outline: 3px solid rgba(129,140,248,.55); outline-offset: 2px;
+    }
+
+    @media (max-width: 900px) {
+      .adm-sidebar { width: 190px; }
+      .adm-content { padding: 20px; }
+      .adm-topbar { padding: 14px 20px; }
+      .adm-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .admin-view { display: block; }
+      .adm-sidebar { position: static; width: 100%; height: auto; min-height: 0; overflow: visible; }
+      .adm-brand { padding: 16px; }
+      .adm-nav { display: flex; overflow-x: auto; padding: 8px; gap: 6px; scrollbar-width: thin; }
+      .adm-nav-section, .adm-footer { display: none; }
+      .adm-nav-item { flex: 0 0 auto; min-height: 44px; margin: 0; padding: 10px 12px; }
+      .adm-topbar { position: static; padding: 12px 16px; }
+      .adm-topbar .user-chip { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .adm-content { padding: 16px; }
+      .adm-section-row { align-items: stretch; }
+      .adm-search-wrap { width: 100% !important; }
+      .adm-stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .adm-quick-actions { grid-template-columns: 1fr; }
+      .adm-modal-overlay { align-items: flex-end; padding: 0; }
+      .adm-modal-box, .adm-modal-box.wide { width: 100%; max-width: none; max-height: 92dvh; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 22px 18px; }
+      .adm-modal-actions { flex-direction: column-reverse; }
+      .adm-modal-actions .adm-btn { width: 100%; min-height: 46px; justify-content: center; }
+      .adm-users-table { min-width: 0; }
+      .adm-users-table thead { display: none; }
+      .adm-users-table, .adm-users-table tbody, .adm-users-table tr, .adm-users-table td { display: block; width: 100%; }
+      .adm-users-table tr { padding: 16px; border-bottom: 1px solid rgba(255,255,255,.09); }
+      .adm-users-table td, .adm-users-table td:first-child, .adm-users-table td:last-child { padding: 6px 0; border: 0; background: transparent !important; }
+      .adm-users-table td[data-label] { display: grid; grid-template-columns: 84px minmax(0,1fr); gap: 10px; align-items: start; }
+      .adm-users-table td[data-label]::before { content: attr(data-label); color: rgba(229,231,235,.48); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding-top: 3px; }
+      .adm-users-table td.adm-user-cell { display: block; margin-bottom: 6px; }
+      .adm-user-actions { min-width: 0; display: grid; grid-template-columns: 1fr 1fr; margin-top: 8px; }
+      .adm-user-actions .adm-btn-sm { min-height: 44px; white-space: normal; }
+    }
+
+    @media (max-width: 420px) {
+      .adm-stats-grid, .adm-user-actions { grid-template-columns: 1fr; }
+      .adm-topbar .page-title { font-size: 14px; }
+      .adm-security-note { padding: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .adm-btn, .adm-btn-sm, .adm-nav-item, .adm-input { transition: none !important; }
+    }
   </style>
 </head>
 
@@ -2098,7 +2167,10 @@
             router.push('/board');
           } else {
             shaking.value = true;
-            store.toast(res.error || 'Ошибка', 'err');
+            const banInfo = res.code === 'banned' && res.ban
+              ? `${res.error}. Причина: ${res.ban.reason}. Срок: ${res.ban.permanent ? 'бессрочно' : new Date(res.ban.expires_at).toLocaleString('ru-RU')}. Обращение #${res.ban.reference}`
+              : (res.error || 'Ошибка');
+            store.toast(banInfo, 'err');
             setTimeout(() => { shaking.value = false; }, 500);
             password.value = '';
           }
@@ -3061,6 +3133,9 @@
           bio: 'О себе', avatar_changed: 'Аватар изменён',
           text: 'Текст баннера', cleared: 'Баннер удалён',
           enabled: 'Включено', decay_per_solve: 'Снижение/решение', min_percent: 'Мин. %',
+          mode: 'Режим блокировки', ban_ids: 'Правила блокировки', reason: 'Причина',
+          expires_at: 'Срок блокировки', sessions_revoked: 'Закрыто сессий', kind: 'Тип правила',
+          ban_id: 'ID правила', target_was_superuser: 'Цель была superuser',
         };
         const categories = ['Web', 'Разное', 'Крипто', 'Форензика', 'Реверс', 'Pwn', 'ОСИНТ'];
         const difficulties = ['Очень лёгкое', 'Лёгкое', 'Среднее', 'Сложное', 'Очень сложное'];
@@ -3071,6 +3146,7 @@
         const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', flagInner: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
         const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', uploadedFile: '', uploadErr: '', pendingFile: null, f: emptyForm() });
         const passwordModal = reactive({ show: false, user: null, password: '', saving: false, error: '' });
+        const banModal = reactive({ show: false, user: null, mode: 'account', reason: '', expires_hours: '', saving: false, error: '' });
         const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки', dynamic_pricing: 'Динамические цены', journal: 'Журнал' };
 
         function postJSON(url, body) {
@@ -3154,21 +3230,32 @@
         function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
         const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
         async function toggleStaff(u) { const d = await postJSON('/api/admin/users/' + u.id + '/toggle-staff', {}).then(r => r.json()); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка', 'err'); }
-        async function banUser(u, mode) {
-          const reason = window.prompt(mode === 'all_traces' ? 'Причина бана аккаунта, IP и сигнатур (общий IP может затронуть других участников):' : 'Причина бана аккаунта:', 'Нарушение правил');
-          if (reason === null) return;
-          const d = await postJSON('/api/admin/users/' + u.id + '/ban', { mode, reason }).then(r => r.json());
-          if (d.ok) { u.active_bans = d.ban_ids.length; store.toast(u.username + ': доступ заблокирован, сессий закрыто ' + d.sessions_revoked, 'ok'); }
-          else store.toast(d.error || 'Ошибка', 'err');
+        function openBanModal(u, mode) {
+          Object.assign(banModal, { show: true, user: u, mode, reason: '', expires_hours: '', saving: false, error: '' });
+        }
+        async function confirmBanUser() {
+          if (!banModal.user) return;
+          if (!banModal.reason.trim()) { banModal.error = 'Укажите причину — её увидит заблокированный пользователь.'; return; }
+          banModal.saving = true; banModal.error = '';
+          const d = await postJSON('/api/admin/users/' + banModal.user.id + '/ban', {
+            mode: banModal.mode,
+            reason: banModal.reason.trim(),
+            expires_hours: banModal.expires_hours || null,
+          }).then(r => r.json());
+          banModal.saving = false;
+          if (d.ok) {
+            store.toast(banModal.user.username + ': создано правил ' + d.ban_ids.length + ', сессий закрыто ' + d.sessions_revoked, 'ok');
+            banModal.show = false;
+            await loadUsers();
+          } else banModal.error = d.error || 'Не удалось создать блокировку';
         }
         async function unbanUser(u) {
-          const data = await fetch('/api/admin/security/bans').then(r => r.json());
-          if (!data.ok) { store.toast(data.error || 'Ошибка', 'err'); return; }
-          const active = data.bans.filter(b => b.active && b.username === u.username);
+          const active = u.active_ban_details || [];
           for (const ban of active) await postJSON('/api/admin/security/bans/' + ban.id + '/revoke', {});
-          u.active_bans = 0;
           store.toast(u.username + ': блокировки сняты', 'ok');
+          await loadUsers();
         }
+        function formatBanExpiry(value) { return value ? new Date(value).toLocaleString('ru-RU') : 'Бессрочно'; }
         function resetUserPassword(u) {
           Object.assign(passwordModal, { show: true, user: u, password: '', saving: false, error: '' });
         }
@@ -3252,7 +3339,7 @@
           postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, banUser, unbanUser, resetUserPassword, confirmResetUserPassword, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
+        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -3261,7 +3348,7 @@
         <div class="logo"><span>CTF</span> Admin</div>
         <div class="sub">Панель управления</div>
       </div>
-      <div style="padding:8px 0;flex:1;">
+      <div class="adm-nav" style="padding:8px 0;flex:1;">
         <div class="adm-nav-section">Обзор</div>
         <div class="adm-nav-item" :class="{active:page==='dashboard'}" @click="page='dashboard'"><span class="icon">⊞</span> Дашборд</div>
         <div class="adm-nav-section">Контент</div>
@@ -3318,7 +3405,7 @@
             <button class="adm-btn gray" @click="page='import';importText=''">↑ Импорт</button>
           </div>
           <div class="adm-card" v-if="tasksLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
-          <div class="adm-card" v-else>
+          <div class="adm-card adm-table-card" v-else>
             <table class="adm-table">
               <thead><tr><th>ID</th><th>Название</th><th>Категория</th><th style="width:70px;">Очки</th><th>Решений</th><th>Статус</th><th>Действия</th></tr></thead>
               <tbody>
@@ -3344,31 +3431,45 @@
         <!-- USERS -->
         <div v-else-if="page === 'users'">
           <div class="adm-section-row">
-            <div class="adm-section-title">Пользователи ({{ users.length }})</div>
+            <div><div class="adm-section-title">Пользователи ({{ users.length }})</div><div class="adm-user-meta">Управление ролями, блокировками и паролями</div></div>
             <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon">🔍</span><input class="adm-input" placeholder="Поиск…" v-model="userSearch"></div>
           </div>
+          <div class="adm-security-note" :class="{'danger': !store.user?.is_superuser}">
+            <div><strong>{{ store.user?.is_superuser ? 'Режим суперпользователя' : 'Только просмотр безопасности' }}</strong><br>
+              {{ store.user?.is_superuser ? 'Обычный бан блокирует аккаунт. Бан по следам дополнительно блокирует замеченные IP и сигнатуры браузера.' : 'Вы вошли как admin/staff. Банить пользователей и менять чужие пароли может только superuser.' }}
+            </div>
+          </div>
           <div class="adm-card" v-if="usersLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
-          <div class="adm-card" v-else>
-            <table class="adm-table">
-              <thead><tr><th>Пользователь</th><th>Очков</th><th>Решено</th><th>Дата</th><th>Роль</th><th>Действия</th></tr></thead>
+          <div class="adm-card adm-table-card" v-else>
+            <table class="adm-table adm-users-table">
+              <thead><tr><th>Пользователь</th><th>Результат</th><th>Роль и безопасность</th><th>Действия</th></tr></thead>
               <tbody>
                 <tr v-for="u in filteredUsers" :key="u.id">
-                  <td><div style="display:flex;align-items:center;gap:8px;"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:700;">{{ u.display_name || u.username }} <span v-if="u.active_bans" class="adm-badge-red">BAN {{ u.active_bans }}</span></div><div style="font-size:11px;color:rgba(229,231,235,.4);">@{{ u.username }}<span v-if="u.last_ips?.length"> · {{ u.last_ips.join(', ') }}</span></div></div></div></td>
-                  <td><span class="adm-badge-indigo">{{ u.score }}</span></td>
-                  <td style="color:rgba(229,231,235,.7);">{{ u.solved_count }}</td>
-                  <td style="font-family:ui-monospace,monospace;color:rgba(229,231,235,.4);font-size:11px;">{{ u.date_joined }}</td>
-                  <td><span v-if="u.is_superuser" class="adm-badge-red">superuser</span><span v-else-if="u.is_staff" class="adm-badge-indigo">admin</span><span v-else class="adm-badge-gray">user</span></td>
-                  <td style="display:flex;gap:4px;flex-wrap:wrap;">
+                  <td class="adm-user-cell"><div class="adm-user-main"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:800;">{{ u.display_name || u.username }} <span v-if="u.active_bans" class="adm-badge-red">Заблокирован</span></div><div class="adm-user-meta">@{{ u.username }} · с {{ u.date_joined }}</div><div class="adm-user-meta" v-if="u.last_ips?.length">IP: {{ u.last_ips.join(', ') }}</div></div></div></td>
+                  <td data-label="Результат"><div><span class="adm-badge-indigo">{{ u.score }} очков</span><div class="adm-user-meta" style="margin-top:5px;">Решено: {{ u.solved_count }}</div></div></td>
+                  <td data-label="Статус">
+                    <div><span v-if="u.is_superuser" class="adm-badge-red">superuser</span><span v-else-if="u.is_staff" class="adm-badge-indigo">admin</span><span v-else class="adm-badge-gray">user</span>
+                      <div class="adm-ban-list" v-if="u.active_ban_details?.length">
+                        <div class="adm-ban-rule" v-for="ban in u.active_ban_details" :key="ban.id">
+                          <div class="adm-ban-rule-head"><strong>{{ ban.kind_label }}</strong><span>{{ ban.value }}</span><span>· {{ formatBanExpiry(ban.expires_at) }}</span></div>
+                          <div class="adm-ban-rule-reason">Причина: {{ ban.reason }} · правило #{{ ban.id }}</div>
+                        </div>
+                      </div>
+                      <div v-else class="adm-user-meta" style="margin-top:5px;">Активных блокировок нет</div>
+                    </div>
+                  </td>
+                  <td data-label="Действия"><div class="adm-user-actions">
                     <button v-if="store.user?.is_superuser && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button>
                     <template v-if="store.user?.is_superuser && u.id !== store.user.id">
-                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="banUser(u, 'account')">Бан</button>
-                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="banUser(u, 'all_traces')" title="Аккаунт + известные IP и клиентские сигнатуры">Бан по следам</button>
+                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="openBanModal(u, 'account')">Бан аккаунта</button>
+                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="openBanModal(u, 'all_traces')" title="Аккаунт + известные IP и клиентские сигнатуры">Бан по следам</button>
                       <button v-else class="adm-btn-sm success" @click="unbanUser(u)">Разбанить</button>
                       <button class="adm-btn-sm primary" @click="resetUserPassword(u)">Сменить пароль</button>
                     </template>
-                  </td>
+                    <span v-if="!store.user?.is_superuser" class="adm-user-meta">Недоступно без прав superuser</span>
+                  </div></td>
                 </tr>
-                <tr v-if="filteredUsers.length === 0"><td colspan="6" style="text-align:center;color:rgba(229,231,235,.35);padding:28px;">Нет пользователей</td></tr>
+                <tr v-if="filteredUsers.length === 0"><td colspan="4" style="text-align:center;color:rgba(229,231,235,.55);padding:28px;">Пользователи не найдены</td></tr>
               </tbody>
             </table>
           </div>
@@ -3531,6 +3632,9 @@
                         e.action==='login'           ? 'background:rgba(96,165,250,.08);color:#93c5fd;border-color:rgba(96,165,250,.2)' :
                         e.action==='grant_staff'     ? 'background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.25)' :
                         e.action==='revoke_staff'    ? 'background:rgba(251,146,60,.12);color:#fb923c;border-color:rgba(251,146,60,.25)' :
+                        e.action==='ban_created'||e.action==='login_blocked' ? 'background:rgba(248,113,113,.12);color:#fca5a5;border-color:rgba(248,113,113,.25)' :
+                        e.action==='ban_revoked'      ? 'background:rgba(74,222,128,.12);color:#86efac;border-color:rgba(74,222,128,.25)' :
+                        e.action==='password_reset'   ? 'background:rgba(129,140,248,.12);color:#c7d2fe;border-color:rgba(129,140,248,.25)' :
                         e.action==='task_delete'||e.action==='reset_all_solves' ? 'background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)' :
                         e.action==='task_create'     ? 'background:rgba(74,222,128,.08);color:#86efac;border-color:rgba(74,222,128,.2)' :
                         e.action==='admin_login'      ? 'background:rgba(192,132,252,.12);color:#c084fc;border-color:rgba(192,132,252,.25)' :
@@ -3590,6 +3694,9 @@
               auditDetail.action==='register'||auditDetail.action==='login' ? 'background:rgba(96,165,250,.12);color:#60a5fa;border-color:rgba(96,165,250,.25)' :
               auditDetail.action==='grant_staff'    ? 'background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.25)' :
               auditDetail.action==='revoke_staff'   ? 'background:rgba(251,146,60,.12);color:#fb923c;border-color:rgba(251,146,60,.25)' :
+              auditDetail.action==='ban_created'||auditDetail.action==='login_blocked' ? 'background:rgba(248,113,113,.12);color:#fca5a5;border-color:rgba(248,113,113,.25)' :
+              auditDetail.action==='ban_revoked'     ? 'background:rgba(74,222,128,.12);color:#86efac;border-color:rgba(74,222,128,.25)' :
+              auditDetail.action==='password_reset'  ? 'background:rgba(129,140,248,.12);color:#c7d2fe;border-color:rgba(129,140,248,.25)' :
               auditDetail.action==='task_delete'||auditDetail.action==='reset_all_solves' ? 'background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)' :
               auditDetail.action==='task_create'    ? 'background:rgba(74,222,128,.08);color:#86efac;border-color:rgba(74,222,128,.2)' :
               auditDetail.action==='admin_login'     ? 'background:rgba(192,132,252,.12);color:#c084fc;border-color:rgba(192,132,252,.25)' :
@@ -3667,12 +3774,36 @@
       </div>
     </div>
 
+    <!-- Superuser ban modal -->
+    <div class="adm-modal-overlay" v-if="banModal.show" @click.self="banModal.show=false" style="z-index:1020;">
+      <div class="adm-modal-box" role="dialog" aria-modal="true" aria-labelledby="ban-modal-title">
+        <h3 id="ban-modal-title">{{ banModal.mode === 'all_traces' ? 'Бан по следам' : 'Бан аккаунта' }}: {{ banModal.user?.username }}</h3>
+        <p>{{ banModal.mode === 'all_traces' ? 'Заблокирует аккаунт, все замеченные IP и клиентские сигнатуры. Пользователь увидит, какое правило сработало.' : 'Заблокирует вход только в выбранный аккаунт и закроет его активные сессии.' }}</p>
+        <div v-if="banModal.mode === 'all_traces'" class="adm-modal-warning">Общий IP школы, офиса, VPN или мобильного оператора может затронуть других участников.</div>
+        <label class="adm-field-lbl" for="ban-reason">Причина блокировки *</label>
+        <textarea id="ban-reason" class="adm-input" maxlength="300" v-model="banModal.reason" placeholder="Например: повторная регистрация после предупреждения"></textarea>
+        <div class="adm-modal-help">Причина будет показана заблокированному пользователю. Не указывайте секретные данные.</div>
+        <label class="adm-field-lbl" for="ban-duration">Срок</label>
+        <select id="ban-duration" class="adm-input" v-model="banModal.expires_hours">
+          <option value="">Бессрочно</option><option value="1">1 час</option><option value="24">24 часа</option><option value="168">7 дней</option><option value="720">30 дней</option>
+        </select>
+        <div v-if="banModal.error" role="alert" style="margin-top:10px;color:#fca5a5;font-size:12px;">{{ banModal.error }}</div>
+        <div class="adm-modal-actions" style="margin-top:20px;">
+          <button class="adm-btn gray" @click="banModal.show=false">Отмена</button>
+          <button class="adm-btn danger" :disabled="banModal.saving || !banModal.reason.trim()" @click="confirmBanUser"><span v-if="banModal.saving" class="adm-spinner"></span><span v-else>Заблокировать</span></button>
+        </div>
+      </div>
+    </div>
+
     <!-- Superuser password reset modal -->
     <div class="adm-modal-overlay" v-if="passwordModal.show" @click.self="passwordModal.show=false" style="z-index:1020;">
-      <div class="adm-modal-box">
-        <h3>Сменить пароль: {{ passwordModal.user?.username }}</h3>
-        <input class="adm-input" type="password" autocomplete="new-password" minlength="10" maxlength="128" v-model="passwordModal.password" placeholder="Новый пароль (минимум 10 символов)" @keyup.enter="confirmResetUserPassword">
-        <div v-if="passwordModal.error" style="margin-top:10px;color:#f87171;font-size:12px;">{{ passwordModal.error }}</div>
+      <div class="adm-modal-box" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+        <h3 id="password-modal-title">Сменить пароль: {{ passwordModal.user?.username }}</h3>
+        <p>Все активные сессии пользователя будут завершены.</p>
+        <label class="adm-field-lbl" for="admin-new-password">Новый пароль *</label>
+        <input id="admin-new-password" class="adm-input" type="password" autocomplete="new-password" minlength="10" maxlength="128" v-model="passwordModal.password" placeholder="Минимум 10 символов" @keyup.enter="confirmResetUserPassword">
+        <div class="adm-modal-help">Используйте уникальную длинную парольную фразу.</div>
+        <div v-if="passwordModal.error" role="alert" style="margin-top:10px;color:#fca5a5;font-size:12px;">{{ passwordModal.error }}</div>
         <div class="adm-modal-actions">
           <button class="adm-btn gray" @click="passwordModal.password=''; passwordModal.show=false">Отмена</button>
           <button class="adm-btn primary" :disabled="passwordModal.saving || passwordModal.password.length < 10" @click="confirmResetUserPassword">Сменить и закрыть сессии</button>
