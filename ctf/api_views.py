@@ -28,6 +28,26 @@ def _json_error(msg, status=400):
     return JsonResponse({"ok": False, "error": msg}, status=status)
 
 
+def _admin_ban_payload(ban):
+    if ban.kind == SecurityBan.ACCOUNT:
+        value = "аккаунт"
+    elif ban.kind == SecurityBan.IP:
+        value = ban.value
+    elif ban.value:
+        value = ban.value[:12] + "..."
+    else:
+        value = "без значения"
+    return {
+        "id": ban.id,
+        "kind": ban.kind,
+        "kind_label": BAN_KIND_LABELS.get(ban.kind, ban.kind),
+        "value": value,
+        "reason": ban.reason or "Причина не указана",
+        "expires_at": ban.expires_at.isoformat() if ban.expires_at else None,
+        "permanent": ban.expires_at is None,
+    }
+
+
 def _require_auth(request):
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "Not authenticated"}, status=401)
@@ -158,7 +178,13 @@ class ApiLogin(View):
             return _json_error("Неверный логин или пароль")
         ban = find_matching_ban(request, user)
         if ban:
-            log_action(request, "login_blocked", actor=user, details={"ban_id": ban.id, "kind": ban.kind})
+            log_action(request, "login_blocked", actor=user, target_user=ban.user, details={
+                "ban_id": ban.id,
+                "kind": ban.kind,
+                "kind_label": BAN_KIND_LABELS.get(ban.kind, ban.kind),
+                "reason": ban.reason or "Причина не указана",
+                "expires_at": ban.expires_at.isoformat() if ban.expires_at else None,
+            })
             return JsonResponse(public_ban_payload(ban), status=403)
         cache.delete(_rate_cache_key(rate_key))
         login(request, user)
@@ -655,6 +681,7 @@ class ApiSuperuserBanUser(View):
                     rules.append((SecurityBan.SIGNATURE, target, trace.signature_hash))
 
         created_ids = []
+        created_rules = []
         with transaction.atomic():
             for kind, user, value in dict.fromkeys(rules):
                 ban = SecurityBan.objects.filter(kind=kind, user=user, value=value, active=True).first()
@@ -672,13 +699,23 @@ class ApiSuperuserBanUser(View):
                     ban.full_clean()
                     ban.save()
                 created_ids.append(ban.id)
+                created_rules.append(_admin_ban_payload(ban))
         sessions = revoke_user_sessions(target.id)
         log_action(request, "ban_created", target_user=target, details={
-            "mode": mode, "ban_ids": created_ids, "reason": reason,
+            "mode": "бан аккаунта" if mode == "account" else "бан аккаунта + следы",
+            "ban_ids": created_ids,
+            "rules": created_rules,
+            "rules_count": len(created_rules),
+            "reason": reason,
             "expires_at": expires_at.isoformat() if expires_at else None,
             "sessions_revoked": sessions,
         })
-        return JsonResponse({"ok": True, "ban_ids": created_ids, "sessions_revoked": sessions})
+        return JsonResponse({
+            "ok": True,
+            "ban_ids": created_ids,
+            "created_rules": created_rules,
+            "sessions_revoked": sessions,
+        })
 
 
 class ApiSuperuserResetPassword(View):
@@ -701,9 +738,17 @@ class ApiSuperuserResetPassword(View):
         target.save(update_fields=["password"])
         sessions = revoke_user_sessions(target.id)
         log_action(request, "password_reset", target_user=target, details={
-            "sessions_revoked": sessions, "target_was_superuser": target.is_superuser,
+            "target_username": target.username,
+            "target_role": "superuser" if target.is_superuser else ("admin" if target.is_staff else "user"),
+            "sessions_revoked": sessions,
+            "target_was_superuser": target.is_superuser,
         })
-        return JsonResponse({"ok": True, "sessions_revoked": sessions})
+        return JsonResponse({
+            "ok": True,
+            "target_username": target.username,
+            "target_role": "superuser" if target.is_superuser else ("admin" if target.is_staff else "user"),
+            "sessions_revoked": sessions,
+        })
 
 
 def api_superuser_bans(request):
