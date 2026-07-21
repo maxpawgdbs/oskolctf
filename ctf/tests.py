@@ -1,7 +1,9 @@
 import json
+from unittest.mock import patch
 
 from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 
 from ctf.models import AuditLog, SecurityBan, User
 
@@ -121,6 +123,16 @@ class SecurityControlTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.user.refresh_from_db()
         self.assertFalse(self.user.avatar)
+
+    def test_create_superusers_upgrades_existing_named_accounts(self):
+        existing = User.objects.create_user("nekoty", password="OldStrongPass!42", is_staff=False, is_superuser=False)
+        with override_settings(DEBUG=False):
+            with patch.dict("os.environ", {"SUPERUSER_PASSWORD": "StrongRootPass!42"}):
+                call_command("create_superusers")
+        existing.refresh_from_db()
+        self.assertTrue(existing.is_staff)
+        self.assertTrue(existing.is_superuser)
+        self.assertTrue(existing.is_active)
 
     def test_trace_ban_blocks_observed_ip_and_signature(self):
         victim = Client(enforce_csrf_checks=True)
