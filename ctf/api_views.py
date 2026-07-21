@@ -644,6 +644,7 @@ def api_admin_users(request):
     ]})
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ApiSuperuserBanUser(View):
     """Ban an account alone, or the account plus its observed secondary signals."""
 
@@ -722,6 +723,7 @@ class ApiSuperuserBanUser(View):
         })
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ApiSuperuserResetPassword(View):
     def post(self, request, user_id):
         err = _require_superuser(request)
@@ -774,6 +776,7 @@ def api_superuser_bans(request):
     } for ban in bans]})
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ApiSuperuserRevokeBan(View):
     def post(self, request, ban_id):
         err = _require_superuser(request)
@@ -790,6 +793,7 @@ class ApiSuperuserRevokeBan(View):
         return JsonResponse({"ok": True})
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class api_admin_toggle_staff(View):
     def post(self, request, user_id):
         err = _require_superuser(request)
