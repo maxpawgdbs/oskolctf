@@ -1,4 +1,5 @@
 import hashlib
+import ipaddress
 import json
 import os
 
@@ -48,6 +49,82 @@ class User(AbstractUser):
 
     def get_solve_count(self):
         return self.solves.filter(task__active=True).count()
+
+
+class SecurityBan(models.Model):
+    """Server-side ban rule. Client-provided signatures are only a secondary signal."""
+
+    ACCOUNT = "account"
+    IP = "ip"
+    SIGNATURE = "signature"
+    USER_AGENT = "user_agent"
+    KIND_CHOICES = [
+        (ACCOUNT, "Account"),
+        (IP, "IP / CIDR"),
+        (SIGNATURE, "Client signature"),
+        (USER_AGENT, "User-Agent hash"),
+    ]
+
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, db_index=True)
+    user = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.CASCADE, related_name="security_bans"
+    )
+    value = models.CharField(max_length=128, blank=True, db_index=True)
+    reason = models.CharField(max_length=300, blank=True)
+    active = models.BooleanField(default=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_security_bans"
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["kind", "user", "value"],
+                condition=models.Q(active=True),
+                name="unique_active_security_ban",
+            )
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.kind == self.ACCOUNT and not self.user_id:
+            raise ValidationError({"user": "Account bans require a user."})
+        if self.kind != self.ACCOUNT and not self.value:
+            raise ValidationError({"value": "This ban type requires a value."})
+        if self.kind == self.IP and self.value:
+            try:
+                self.value = str(ipaddress.ip_network(self.value, strict=False))
+            except ValueError as exc:
+                raise ValidationError({"value": "Enter a valid IP address or CIDR."}) from exc
+
+    @property
+    def is_effective(self):
+        return self.active and (self.expires_at is None or self.expires_at > timezone.now())
+
+
+class ClientTrace(models.Model):
+    """Minimal hashed signals observed for an authenticated account."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="client_traces")
+    ip = models.GenericIPAddressField(null=True, blank=True, db_index=True)
+    signature_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    user_agent_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    first_seen = models.DateTimeField(default=timezone.now)
+    last_seen = models.DateTimeField(default=timezone.now, db_index=True)
+    seen_count = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-last_seen"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "ip", "signature_hash", "user_agent_hash"],
+                name="unique_user_client_trace",
+            )
+        ]
 
 
 # ─── Задание ────────────────────────────────────────────────────────────────────
@@ -228,8 +305,13 @@ def log_action(request_or_none, action: str, actor=None, target_user=None, targe
     ip = None
     try:
         if request_or_none is not None:
-            xff = request_or_none.META.get('HTTP_X_FORWARDED_FOR', '')
-            ip = (xff.split(',')[0].strip() or request_or_none.META.get('REMOTE_ADDR', ''))[:39] or None
+            raw_ip = request_or_none.META.get('REMOTE_ADDR', '')
+            if getattr(settings, 'TRUST_PROXY_HEADERS', False):
+                raw_ip = request_or_none.META.get('HTTP_X_REAL_IP', '') or raw_ip
+            try:
+                ip = str(ipaddress.ip_address(raw_ip.strip()))
+            except ValueError:
+                ip = None
             if actor is None and hasattr(request_or_none, 'user') and request_or_none.user.is_authenticated:
                 actor = request_or_none.user
         AuditLog.objects.create(

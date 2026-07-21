@@ -1804,6 +1804,23 @@
     }
 
     /* ─────────────────── STORE ─────────────────── */
+    // Stable, random browser identifier. It is a secondary abuse signal, not authentication.
+    let clientSignature = localStorage.getItem('oskolctf-client-signature');
+    if (!clientSignature) {
+      clientSignature = crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('oskolctf-client-signature', clientSignature);
+    }
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.startsWith('/')) {
+        const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+        headers.set('X-Client-Signature', clientSignature);
+        init = { ...init, headers };
+      }
+      return nativeFetch(input, init);
+    };
+
     const store = reactive({
       user: null,
       csrf: null,
@@ -1835,7 +1852,7 @@
       async logout() {
         await fetch('/api/auth/logout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
           body: JSON.stringify({ csrf: this.csrf }),
         });
         this.user = null;
@@ -2033,8 +2050,8 @@
 
     function validatePassword(v, isRegister = false) {
       if (!v) return 'Введи пароль';
-      if (v.length < 6) return 'Минимум 6 символов';
-      if (v.length > 16) return 'Максимум 16 символов';
+      if (v.length < 10) return 'Минимум 10 символов';
+      if (v.length > 128) return 'Максимум 128 символов';
       if (!isRegister) return '';
       if (WEAK_PASSWORDS.has(v.toLowerCase())) return 'Слишком простой пароль';
       if (!/[a-zA-Z]/.test(v)) return 'Пароль должен содержать хотя бы одну букву';
@@ -2069,7 +2086,7 @@
           }
           loading.value = true;
           const res = await fetch('/api/auth/login', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
           loading.value = false;
@@ -2110,7 +2127,7 @@
             </div>
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
-              <input class="input" v-model="password" type="password" placeholder="••••••••" autocomplete="current-password" maxlength="16"
+              <input class="input" v-model="password" type="password" placeholder="••••••••••" autocomplete="current-password" maxlength="128"
                 :style="{background:'rgba(255,255,255,.07)',borderColor:passwordErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
               <span v-if="passwordErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ passwordErr }}</span>
             </div>
@@ -2167,7 +2184,7 @@
           }
           loading.value = true;
           const res = await fetch('/api/auth/register', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
           loading.value = false;
@@ -2207,7 +2224,7 @@
             </div>
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
-              <input class="input" v-model="password" type="password" placeholder="6–16 символов" autocomplete="new-password" maxlength="16"
+              <input class="input" v-model="password" type="password" placeholder="минимум 10 символов" autocomplete="new-password" maxlength="128"
                 :style="{background:'rgba(255,255,255,.07)',borderColor:passwordErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
               <span v-if="passwordErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ passwordErr }}</span>
               <div v-if="password && !passwordErr" style="margin-top:8px;">
@@ -2297,7 +2314,7 @@
           submitting.value = true;
           const btn = e.submitter;
           const res = await fetch('/api/submit', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ flag: flag.value.trim(), csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
           submitting.value = false;
@@ -2321,7 +2338,7 @@
           submitting.value = true;
           const btn = e.submitter;
           const res = await fetch('/api/submit', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ flag: modalFlag.value.trim(), csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438' }));
           submitting.value = false;
@@ -3053,6 +3070,7 @@
         }
         const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', flagInner: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
         const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', uploadedFile: '', uploadErr: '', pendingFile: null, f: emptyForm() });
+        const passwordModal = reactive({ show: false, user: null, password: '', saving: false, error: '' });
         const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки', dynamic_pricing: 'Динамические цены', journal: 'Журнал' };
 
         function postJSON(url, body) {
@@ -3136,6 +3154,34 @@
         function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
         const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
         async function toggleStaff(u) { const d = await postJSON('/api/admin/users/' + u.id + '/toggle-staff', {}).then(r => r.json()); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка', 'err'); }
+        async function banUser(u, mode) {
+          const reason = window.prompt(mode === 'all_traces' ? 'Причина бана аккаунта, IP и сигнатур (общий IP может затронуть других участников):' : 'Причина бана аккаунта:', 'Нарушение правил');
+          if (reason === null) return;
+          const d = await postJSON('/api/admin/users/' + u.id + '/ban', { mode, reason }).then(r => r.json());
+          if (d.ok) { u.active_bans = d.ban_ids.length; store.toast(u.username + ': доступ заблокирован, сессий закрыто ' + d.sessions_revoked, 'ok'); }
+          else store.toast(d.error || 'Ошибка', 'err');
+        }
+        async function unbanUser(u) {
+          const data = await fetch('/api/admin/security/bans').then(r => r.json());
+          if (!data.ok) { store.toast(data.error || 'Ошибка', 'err'); return; }
+          const active = data.bans.filter(b => b.active && b.username === u.username);
+          for (const ban of active) await postJSON('/api/admin/security/bans/' + ban.id + '/revoke', {});
+          u.active_bans = 0;
+          store.toast(u.username + ': блокировки сняты', 'ok');
+        }
+        function resetUserPassword(u) {
+          Object.assign(passwordModal, { show: true, user: u, password: '', saving: false, error: '' });
+        }
+        async function confirmResetUserPassword() {
+          if (!passwordModal.user || !passwordModal.password) return;
+          passwordModal.saving = true; passwordModal.error = '';
+          const d = await postJSON('/api/admin/users/' + passwordModal.user.id + '/reset-password', { new_password: passwordModal.password }).then(r => r.json());
+          passwordModal.saving = false;
+          if (d.ok) {
+            store.toast(passwordModal.user.username + ': пароль изменён, сессий закрыто ' + d.sessions_revoked, 'ok');
+            passwordModal.password = ''; passwordModal.show = false;
+          } else passwordModal.error = d.error || 'Ошибка';
+        }
         function onDrop(e) { const f = e.dataTransfer.files[0]; if (f) readFileAsText(f); }
         function onFileSelect(e) { const f = e.target.files[0]; if (f) readFileAsText(f); }
         function readFileAsText(file) { const r = new FileReader(); r.onload = ev => { importText.value = ev.target.result; }; r.readAsText(file); }
@@ -3206,7 +3252,7 @@
           postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
+        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, banUser, unbanUser, resetUserPassword, confirmResetUserPassword, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -3307,12 +3353,20 @@
               <thead><tr><th>Пользователь</th><th>Очков</th><th>Решено</th><th>Дата</th><th>Роль</th><th>Действия</th></tr></thead>
               <tbody>
                 <tr v-for="u in filteredUsers" :key="u.id">
-                  <td><div style="display:flex;align-items:center;gap:8px;"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:700;">{{ u.display_name || u.username }}</div><div style="font-size:11px;color:rgba(229,231,235,.4);">@{{ u.username }}</div></div></div></td>
+                  <td><div style="display:flex;align-items:center;gap:8px;"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:700;">{{ u.display_name || u.username }} <span v-if="u.active_bans" class="adm-badge-red">BAN {{ u.active_bans }}</span></div><div style="font-size:11px;color:rgba(229,231,235,.4);">@{{ u.username }}<span v-if="u.last_ips?.length"> · {{ u.last_ips.join(', ') }}</span></div></div></div></td>
                   <td><span class="adm-badge-indigo">{{ u.score }}</span></td>
                   <td style="color:rgba(229,231,235,.7);">{{ u.solved_count }}</td>
                   <td style="font-family:ui-monospace,monospace;color:rgba(229,231,235,.4);font-size:11px;">{{ u.date_joined }}</td>
                   <td><span v-if="u.is_superuser" class="adm-badge-red">superuser</span><span v-else-if="u.is_staff" class="adm-badge-indigo">admin</span><span v-else class="adm-badge-gray">user</span></td>
-                  <td><button v-if="!u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button><span v-else style="font-size:11px;color:rgba(229,231,235,.3);">—</span></td>
+                  <td style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button v-if="store.user?.is_superuser && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button>
+                    <template v-if="store.user?.is_superuser && u.id !== store.user.id">
+                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="banUser(u, 'account')">Бан</button>
+                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="banUser(u, 'all_traces')" title="Аккаунт + известные IP и клиентские сигнатуры">Бан по следам</button>
+                      <button v-else class="adm-btn-sm success" @click="unbanUser(u)">Разбанить</button>
+                      <button class="adm-btn-sm primary" @click="resetUserPassword(u)">Сменить пароль</button>
+                    </template>
+                  </td>
                 </tr>
                 <tr v-if="filteredUsers.length === 0"><td colspan="6" style="text-align:center;color:rgba(229,231,235,.35);padding:28px;">Нет пользователей</td></tr>
               </tbody>
@@ -3609,6 +3663,19 @@
         <div class="adm-modal-actions">
           <button class="adm-btn gray" @click="modal.show=false">Отмена</button>
           <button class="adm-btn danger" @click="modal.action(); modal.show=false">Подтвердить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Superuser password reset modal -->
+    <div class="adm-modal-overlay" v-if="passwordModal.show" @click.self="passwordModal.show=false" style="z-index:1020;">
+      <div class="adm-modal-box">
+        <h3>Сменить пароль: {{ passwordModal.user?.username }}</h3>
+        <input class="adm-input" type="password" autocomplete="new-password" minlength="10" maxlength="128" v-model="passwordModal.password" placeholder="Новый пароль (минимум 10 символов)" @keyup.enter="confirmResetUserPassword">
+        <div v-if="passwordModal.error" style="margin-top:10px;color:#f87171;font-size:12px;">{{ passwordModal.error }}</div>
+        <div class="adm-modal-actions">
+          <button class="adm-btn gray" @click="passwordModal.password=''; passwordModal.show=false">Отмена</button>
+          <button class="adm-btn primary" :disabled="passwordModal.saving || passwordModal.password.length < 10" @click="confirmResetUserPassword">Сменить и закрыть сессии</button>
         </div>
       </div>
     </div>

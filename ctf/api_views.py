@@ -5,16 +5,23 @@ import hashlib
 import hmac
 import json
 import os
+from io import BytesIO
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required as dj_login_required
 
-from ctf.models import User, Task, Solve, DynamicPricingConfig, AuditLog, log_action, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
+from ctf.models import SecurityBan, User, Task, Solve, DynamicPricingConfig, AuditLog, log_action, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
+from ctf.security import find_matching_ban, get_client_ip, record_client_trace, revoke_user_sessions
 
 
 def _json_error(msg, status=400):
@@ -25,6 +32,77 @@ def _require_auth(request):
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "Not authenticated"}, status=401)
     return None
+
+
+def _require_superuser(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({"ok": False, "error": "Superuser access required"}, status=403)
+    return None
+
+
+def _parse_json(request):
+    try:
+        value = json.loads(request.body or b"{}")
+    except (TypeError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _password_error(password, user=None):
+    if len(password) > 128:
+        return "Password is too long"
+    try:
+        validate_password(password, user=user)
+    except ValidationError as exc:
+        return " ".join(exc.messages)
+    return None
+
+
+def _sanitize_avatar(uploaded):
+    """Decode and re-encode images so MIME spoofing and image polyglots are not stored."""
+    if uploaded.size > 2 * 1024 * 1024:
+        raise ValidationError("Аватар: не больше 2 МБ")
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    raw = uploaded.read()
+    try:
+        image = Image.open(BytesIO(raw))
+        image.verify()
+        image = Image.open(BytesIO(raw))
+        if image.width * image.height > 16_000_000:
+            raise ValidationError("Аватар: слишком большое разрешение")
+        image = ImageOps.exif_transpose(image)
+        image.thumbnail((1024, 1024))
+        output = BytesIO()
+        if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+            image.convert("RGBA").save(output, format="PNG", optimize=True)
+            extension = "png"
+        else:
+            image.convert("RGB").save(output, format="JPEG", quality=88, optimize=True)
+            extension = "jpg"
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValidationError("Аватар: повреждённый или неподдерживаемый файл") from exc
+    from django.utils.crypto import get_random_string
+
+    return ContentFile(output.getvalue(), name=f"avatar-{get_random_string(20)}.{extension}")
+
+
+def _rate_cache_key(value):
+    return "security-rate:" + hashlib.sha256(value.encode()).hexdigest()
+
+
+def _rate_limited(key, limit, seconds, increment=False):
+    cache_key = _rate_cache_key(key)
+    count = cache.get(cache_key, 0)
+    if increment:
+        if count:
+            try:
+                cache.incr(cache_key)
+            except ValueError:
+                cache.set(cache_key, count + 1, seconds)
+        else:
+            cache.set(cache_key, 1, seconds)
+    return count >= limit
 
 
 def _sync_tasks_file_safe():
@@ -48,6 +126,7 @@ def api_me(request):
                 "display_name": u.get_display_name(),
                 "avatar": u.avatar.url if u.avatar else None,
                 "is_staff": u.is_staff,
+                "is_superuser": u.is_superuser,
             }
         })
     return JsonResponse({"user": None})
@@ -62,7 +141,6 @@ def api_csrf(request):
 
 # ── /api/auth/login ───────────────────────────────────────────────────────────────
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiLogin(View):
     def post(self, request):
         try:
@@ -71,10 +149,20 @@ class ApiLogin(View):
             return _json_error("Invalid JSON")
         username = (data.get("username") or "").strip()
         password = data.get("password") or ""
+        rate_key = f"login:{get_client_ip(request)}:{username.casefold()}"
+        if _rate_limited(rate_key, 10, 300):
+            return _json_error("Слишком много попыток входа. Попробуйте позже.", 429)
         user = authenticate(request, username=username, password=password)
         if user is None:
+            _rate_limited(rate_key, 10, 300, increment=True)
             return _json_error("Неверный логин или пароль")
+        ban = find_matching_ban(request, user)
+        if ban:
+            log_action(request, "login_blocked", actor=user, details={"ban_id": ban.id, "kind": ban.kind})
+            return _json_error("Доступ заблокирован", 403)
+        cache.delete(_rate_cache_key(rate_key))
         login(request, user)
+        record_client_trace(request, user)
         log_action(request, 'login', actor=user, details={'username': user.username, 'is_staff': user.is_staff})
         return JsonResponse({
             "ok": True,
@@ -84,13 +172,13 @@ class ApiLogin(View):
                 "display_name": user.get_display_name(),
                 "avatar": user.avatar.url if user.avatar else None,
                 "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
             },
         })
 
 
 # ── /api/auth/register ────────────────────────────────────────────────────────────
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiRegister(View):
     def post(self, request):
         try:
@@ -99,18 +187,25 @@ class ApiRegister(View):
             return _json_error("Invalid JSON")
         username = (data.get("username") or "").strip()
         password = data.get("password") or ""
+        register_key = f"register:{get_client_ip(request)}"
+        if _rate_limited(register_key, 5, 3600):
+            return _json_error("Слишком много регистраций. Попробуйте позже.", 429)
         if len(username) < 3 or len(username) > 16:
             return _json_error("Username: от 3 до 16 символов")
-        if len(password) < 6 or len(password) > 64:
-            return _json_error("Пароль: от 6 до 64 символов")
         # Только буквы, цифры, _, -
         import re
         if not re.match(r'^[\w\-]+$', username):
             return _json_error("Username: только буквы, цифры, _ и -")
         if User.objects.filter(username__iexact=username).exists():
             return _json_error("Имя уже занято")
+        candidate = User(username=username)
+        password_error = _password_error(password, candidate)
+        if password_error:
+            return _json_error(password_error)
         user = User.objects.create_user(username=username, password=password)
+        _rate_limited(register_key, 5, 3600, increment=True)
         login(request, user)
+        record_client_trace(request, user)
         log_action(request, 'register', actor=user, details={'username': user.username})
         return JsonResponse({
             "ok": True,
@@ -120,13 +215,13 @@ class ApiRegister(View):
                 "display_name": user.get_display_name(),
                 "avatar": user.avatar.url if user.avatar else None,
                 "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
             },
         })
 
 
 # ── /api/auth/logout ──────────────────────────────────────────────────────────────
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiLogout(View):
     def post(self, request):
         _uname = request.user.username if request.user.is_authenticated else None
@@ -213,7 +308,6 @@ def api_board(request):
 
 # ── /api/submit ───────────────────────────────────────────────────────────────────
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiSubmit(View):
     def post(self, request):
         err = _require_auth(request)
@@ -334,7 +428,6 @@ def api_profile(request, username: str):
 
 # ── /api/profile/update ───────────────────────────────────────────────────────────
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiProfileUpdate(View):
     def post(self, request):
         err = _require_auth(request)
@@ -364,12 +457,10 @@ class ApiProfileUpdate(View):
         user.display_name = display_name
         user.bio = bio
         if avatar_file:
-            # Проверка типа файла
-            allowed = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-            if avatar_file.content_type not in allowed:
-                return _json_error("Аватарка: только JPEG, PNG, GIF, WEBP")
-            if avatar_file.size > 2 * 1024 * 1024:
-                return _json_error("Аватарка: не больше 2 МБ")
+            try:
+                sanitized_avatar = _sanitize_avatar(avatar_file)
+            except ValidationError as exc:
+                return _json_error(" ".join(exc.messages))
             if user.avatar:
                 # Удаляем старый файл
                 try:
@@ -378,7 +469,7 @@ class ApiProfileUpdate(View):
                         os.remove(old_path)
                 except Exception:
                     pass
-            user.avatar = avatar_file
+            user.avatar = sanitized_avatar
         user.save()
         _pf_changes = {}
         if _old_display != (display_name or ''):
@@ -399,7 +490,6 @@ class ApiProfileUpdate(View):
 
 # ── /api/profile/change-password ─────────────────────────────────────────────────
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiChangePassword(View):
     def post(self, request):
         err = _require_auth(request)
@@ -413,8 +503,9 @@ class ApiChangePassword(View):
         new_pw = data.get("new_password") or ""
         if not request.user.check_password(old_pw):
             return _json_error("Неверный текущий пароль")
-        if len(new_pw) < 6 or len(new_pw) > 64:
-            return _json_error("Новый пароль: от 6 до 64 символов")
+        password_error = _password_error(new_pw, request.user)
+        if password_error:
+            return _json_error(password_error)
         request.user.set_password(new_pw)
         request.user.save()
         # Обновляем сессию, чтобы не выкидывало
@@ -438,7 +529,6 @@ def api_admin_stats(request):
     })
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiAdminSyncTasks(View):
     """Синхронизировать tasks.json → БД."""
     def post(self, request):
@@ -488,7 +578,8 @@ def api_admin_users(request):
         score=Sum("solves__task__points"),
         solved_count=Count("solves"),
     ).order_by("-score", "-solved_count", "username")
-    return JsonResponse({"ok": True, "users": [
+    can_manage_security = request.user.is_superuser
+    return JsonResponse({"ok": True, "can_manage_security": can_manage_security, "users": [
         {
             "id": u.id,
             "username": u.username,
@@ -499,15 +590,143 @@ def api_admin_users(request):
             "score": u.score or 0,
             "solved_count": u.solved_count or 0,
             "date_joined": str(u.date_joined)[:10],
+            "is_active": u.is_active,
+            "active_bans": u.security_bans.filter(active=True).filter(Q(expires_at=None) | Q(expires_at__gt=timezone.now())).count() if can_manage_security else 0,
+            "last_ips": list(u.client_traces.exclude(ip=None).values_list("ip", flat=True).distinct()[:5]) if can_manage_security else [],
         }
         for u in users
     ]})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
+class ApiSuperuserBanUser(View):
+    """Ban an account alone, or the account plus its observed secondary signals."""
+
+    def post(self, request, user_id):
+        err = _require_superuser(request)
+        if err:
+            return err
+        data = _parse_json(request)
+        if data is None:
+            return _json_error("Invalid JSON")
+        try:
+            target = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return _json_error("Пользователь не найден", 404)
+        if target.pk == request.user.pk:
+            return _json_error("Нельзя заблокировать собственную учётную запись")
+
+        mode = data.get("mode", "account")
+        if mode not in {"account", "all_traces"}:
+            return _json_error("Неизвестный режим блокировки")
+        reason = str(data.get("reason", ""))[:300]
+        expires_at = None
+        if data.get("expires_hours") not in (None, ""):
+            try:
+                hours = int(data["expires_hours"])
+            except (TypeError, ValueError):
+                return _json_error("expires_hours должен быть числом")
+            if not 1 <= hours <= 8760:
+                return _json_error("Срок блокировки: от 1 до 8760 часов")
+            expires_at = timezone.now() + timedelta(hours=hours)
+
+        rules = [(SecurityBan.ACCOUNT, target, "")]
+        if mode == "all_traces":
+            for trace in target.client_traces.all()[:100]:
+                if trace.ip:
+                    suffix = 32 if ":" not in trace.ip else 128
+                    rules.append((SecurityBan.IP, target, f"{trace.ip}/{suffix}"))
+                if trace.signature_hash:
+                    rules.append((SecurityBan.SIGNATURE, target, trace.signature_hash))
+
+        created_ids = []
+        with transaction.atomic():
+            for kind, user, value in dict.fromkeys(rules):
+                ban = SecurityBan.objects.filter(kind=kind, user=user, value=value, active=True).first()
+                if ban and not ban.is_effective:
+                    ban.reason = reason
+                    ban.expires_at = expires_at
+                    ban.created_by = request.user
+                    ban.created_at = timezone.now()
+                    ban.save(update_fields=["reason", "expires_at", "created_by", "created_at"])
+                elif not ban:
+                    ban = SecurityBan(
+                        kind=kind, user=user, value=value, reason=reason,
+                        expires_at=expires_at, created_by=request.user,
+                    )
+                    ban.full_clean()
+                    ban.save()
+                created_ids.append(ban.id)
+        sessions = revoke_user_sessions(target.id)
+        log_action(request, "ban_created", target_user=target, details={
+            "mode": mode, "ban_ids": created_ids, "reason": reason,
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "sessions_revoked": sessions,
+        })
+        return JsonResponse({"ok": True, "ban_ids": created_ids, "sessions_revoked": sessions})
+
+
+class ApiSuperuserResetPassword(View):
+    def post(self, request, user_id):
+        err = _require_superuser(request)
+        if err:
+            return err
+        data = _parse_json(request)
+        if data is None:
+            return _json_error("Invalid JSON")
+        try:
+            target = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return _json_error("Пользователь не найден", 404)
+        password = data.get("new_password") or ""
+        password_error = _password_error(password, target)
+        if password_error:
+            return _json_error(password_error)
+        target.set_password(password)
+        target.save(update_fields=["password"])
+        sessions = revoke_user_sessions(target.id)
+        log_action(request, "password_reset", target_user=target, details={
+            "sessions_revoked": sessions, "target_was_superuser": target.is_superuser,
+        })
+        return JsonResponse({"ok": True, "sessions_revoked": sessions})
+
+
+def api_superuser_bans(request):
+    err = _require_superuser(request)
+    if err:
+        return err
+    bans = SecurityBan.objects.select_related("user", "created_by")[:500]
+    return JsonResponse({"ok": True, "bans": [{
+        "id": ban.id,
+        "kind": ban.kind,
+        "username": ban.user.username if ban.user else None,
+        "value": ban.value,
+        "reason": ban.reason,
+        "active": ban.active,
+        "expires_at": ban.expires_at.isoformat() if ban.expires_at else None,
+        "created_at": ban.created_at.isoformat(),
+        "created_by": ban.created_by.username if ban.created_by else None,
+    } for ban in bans]})
+
+
+class ApiSuperuserRevokeBan(View):
+    def post(self, request, ban_id):
+        err = _require_superuser(request)
+        if err:
+            return err
+        try:
+            ban = SecurityBan.objects.select_related("user").get(pk=ban_id)
+        except SecurityBan.DoesNotExist:
+            return _json_error("Блокировка не найдена", 404)
+        ban.active = False
+        ban.save(update_fields=["active"])
+        target = ban.user
+        log_action(request, "ban_revoked", target_user=target, details={"ban_id": ban.id, "kind": ban.kind})
+        return JsonResponse({"ok": True})
+
+
 class api_admin_toggle_staff(View):
     def post(self, request, user_id):
-        err = _require_staff(request)
+        err = _require_superuser(request)
         if err:
             return err
         try:
@@ -555,7 +774,6 @@ def api_admin_tasks(request):
     ]})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiAdminTaskSave(View):
     def post(self, request, task_id):
         err = _require_staff(request)
@@ -611,7 +829,6 @@ class ApiAdminTaskSave(View):
         return JsonResponse({"ok": True})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiAdminTaskCreate(View):
     def post(self, request):
         err = _require_staff(request)
@@ -664,7 +881,6 @@ class ApiAdminTaskCreate(View):
         return JsonResponse({"ok": True, "task_id": task.task_id, "name": task.name})
 
 
-@csrf_exempt
 def api_admin_task_delete(request, task_id):
     err = _require_staff(request)
     if err:
@@ -684,7 +900,6 @@ def api_admin_task_delete(request, task_id):
     return JsonResponse({"ok": True})
 
 
-@csrf_exempt
 def api_admin_task_clear_solves(request, task_id):
     err = _require_staff(request)
     if err:
@@ -700,7 +915,6 @@ def api_admin_task_clear_solves(request, task_id):
     return JsonResponse({"ok": True, "deleted": n})
 
 
-@csrf_exempt
 def api_admin_reset_solves(request):
     err = _require_staff(request)
     if err:
@@ -715,7 +929,6 @@ def api_admin_reset_solves(request):
     return JsonResponse({"ok": True, "deleted": n})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiAdminSetAnnouncement(View):
     def post(self, request):
         err = _require_staff(request)
@@ -738,7 +951,6 @@ class ApiAdminSetAnnouncement(View):
         return JsonResponse({"ok": True, "text": text})
 
 
-@csrf_exempt
 def api_admin_dynamic_pricing(request):
     """GET: получить настройки; POST: обновить настройки динамического ценообразования."""
     err = _require_staff(request)
@@ -817,7 +1029,6 @@ _CATEGORY_FOLDER = {
 }
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ApiAdminTaskUploadFile(View):
     MAX_SIZE = 64 * 1024 * 1024  # 64 МБ
 
@@ -861,12 +1072,12 @@ class ApiAdminTaskUploadFile(View):
             dump_tasks_to_json()
 
             return JsonResponse({"ok": True, "filename": filename, "path": f"/task/{subdir}/{filename}"})
-        except Exception as e:
-            import traceback
-            return _json_error(f"Ошибка сервера: {traceback.format_exc()[-300:]}", 500)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Task file upload failed")
+            return _json_error("Ошибка загрузки файла", 500)
 
 
-@csrf_exempt
 def api_admin_audit_log(request):
     """GET: журнал действий с пагинацией и фильтрацией по типу действия."""
     err = _require_staff(request)
@@ -912,7 +1123,6 @@ def api_admin_audit_log(request):
     })
 
 
-@csrf_exempt
 def api_admin_audit_entry(request):
     """POST: клиент сигнализирует о входе в панель администратора."""
     if request.method != "POST":

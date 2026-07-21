@@ -47,6 +47,12 @@ if [[ ! -f "$ENV_FILE" ]]; then
 else
     info ".env уже существует, оставляем как есть"
 fi
+if ! grep -q '^SUPERUSER_PASSWORD=' "$ENV_FILE"; then
+    SUPERUSER_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))")
+    echo "SUPERUSER_PASSWORD=$SUPERUSER_PASSWORD" >> "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+    success "Случайный SUPERUSER_PASSWORD сохранён в .env"
+fi
 
 # ── 3. Папка для базы данных ─────────────────────────────────
 # Пустая папка — база создастся автоматически при первом запуске

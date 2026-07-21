@@ -1,6 +1,11 @@
 @echo off
 pushd "%~dp0"
 
+:: Локальные dev-настройки. Production берёт секреты только из окружения.
+set "DEBUG=1"
+set "SECRET_KEY=development-only-secret-key"
+set "SUPERUSER_PASSWORD=ChangeMe123!"
+
 :: Создаём venv если нет
 if not exist ".venv\Scripts\python.exe" (
     echo [*] Создаём виртуальное окружение...
