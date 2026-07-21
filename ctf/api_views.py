@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.views import View
 
 from ctf.models import SecurityBan, User, Task, Solve, DynamicPricingConfig, AuditLog, log_action, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
-from ctf.security import find_matching_ban, get_client_ip, record_client_trace, revoke_user_sessions
+from ctf.security import BAN_KIND_LABELS, find_matching_ban, get_client_ip, public_ban_payload, record_client_trace, revoke_user_sessions
 
 
 def _json_error(msg, status=400):
@@ -159,7 +159,7 @@ class ApiLogin(View):
         ban = find_matching_ban(request, user)
         if ban:
             log_action(request, "login_blocked", actor=user, details={"ban_id": ban.id, "kind": ban.kind})
-            return _json_error("Доступ заблокирован", 403)
+            return JsonResponse(public_ban_payload(ban), status=403)
         cache.delete(_rate_cache_key(rate_key))
         login(request, user)
         record_client_trace(request, user)
@@ -579,6 +579,21 @@ def api_admin_users(request):
         solved_count=Count("solves"),
     ).order_by("-score", "-solved_count", "username")
     can_manage_security = request.user.is_superuser
+    def active_ban_details(user):
+        if not can_manage_security:
+            return []
+        bans = user.security_bans.filter(active=True).filter(
+            Q(expires_at=None) | Q(expires_at__gt=timezone.now())
+        ).order_by("kind", "-created_at")
+        return [{
+            "id": ban.id,
+            "kind": ban.kind,
+            "kind_label": BAN_KIND_LABELS.get(ban.kind, ban.kind),
+            "value": ban.value if ban.kind == SecurityBan.IP else (ban.value[:12] + "…" if ban.value else "аккаунт"),
+            "reason": ban.reason or "Причина не указана",
+            "expires_at": ban.expires_at.isoformat() if ban.expires_at else None,
+        } for ban in bans]
+
     return JsonResponse({"ok": True, "can_manage_security": can_manage_security, "users": [
         {
             "id": u.id,
@@ -592,6 +607,7 @@ def api_admin_users(request):
             "date_joined": str(u.date_joined)[:10],
             "is_active": u.is_active,
             "active_bans": u.security_bans.filter(active=True).filter(Q(expires_at=None) | Q(expires_at__gt=timezone.now())).count() if can_manage_security else 0,
+            "active_ban_details": active_ban_details(u),
             "last_ips": list(u.client_traces.exclude(ip=None).values_list("ip", flat=True).distinct()[:5]) if can_manage_security else [],
         }
         for u in users
@@ -698,6 +714,7 @@ def api_superuser_bans(request):
     return JsonResponse({"ok": True, "bans": [{
         "id": ban.id,
         "kind": ban.kind,
+        "kind_label": BAN_KIND_LABELS.get(ban.kind, ban.kind),
         "username": ban.user.username if ban.user else None,
         "value": ban.value,
         "reason": ban.reason,

@@ -4,10 +4,36 @@ import ipaddress
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.db.models import F
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import JsonResponse
+from django.shortcuts import render
 from django.utils import timezone
 
 from ctf.models import ClientTrace, SecurityBan
+
+
+BAN_KIND_LABELS = {
+    SecurityBan.ACCOUNT: "аккаунт",
+    SecurityBan.IP: "IP-адрес",
+    SecurityBan.SIGNATURE: "сигнатура браузера",
+    SecurityBan.USER_AGENT: "отпечаток браузера",
+}
+
+
+def public_ban_payload(ban) -> dict:
+    kind_label = BAN_KIND_LABELS.get(ban.kind, "правило безопасности")
+    return {
+        "ok": False,
+        "error": f"Доступ заблокирован: {kind_label}",
+        "code": "banned",
+        "ban": {
+            "reference": ban.id,
+            "kind": ban.kind,
+            "kind_label": kind_label,
+            "reason": ban.reason or "Причина не указана",
+            "expires_at": ban.expires_at.isoformat() if ban.expires_at else None,
+            "permanent": ban.expires_at is None,
+        },
+    }
 
 
 def _sha256(value: str) -> str:
@@ -99,8 +125,8 @@ class SecurityBanMiddleware:
     def __call__(self, request):
         ban = find_matching_ban(request, getattr(request, "user", None))
         if ban:
-            payload = {"ok": False, "error": "Access denied", "code": "banned"}
+            payload = public_ban_payload(ban)
             if request.path.startswith("/api/"):
                 return JsonResponse(payload, status=403)
-            return HttpResponseForbidden("Access denied")
+            return render(request, "blocked.html", {"ban": payload["ban"]}, status=403)
         return self.get_response(request)

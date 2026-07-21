@@ -272,6 +272,10 @@ class AuditLog(models.Model):
         ('set_announcement',       'Баннер объявления'),
         ('dynamic_pricing_change', 'Динамические цены'),
         ('admin_login',            'Вход в панель admin'),
+        ('login_blocked',          'Заблокированная попытка входа'),
+        ('ban_created',            'Создана блокировка'),
+        ('ban_revoked',            'Снята блокировка'),
+        ('password_reset',         'Пароль изменён суперпользователем'),
     ]
 
     timestamp   = models.DateTimeField(default=timezone.now, verbose_name='Время')
