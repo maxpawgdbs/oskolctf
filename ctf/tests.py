@@ -3,7 +3,7 @@ import json
 from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from ctf.models import SecurityBan, User
+from ctf.models import AuditLog, SecurityBan, User
 
 
 @override_settings(
@@ -61,7 +61,10 @@ class SecurityControlTests(TestCase):
             {"mode": "account", "reason": "test"},
         )
         self.assertEqual(response.status_code, 200)
+        body = response.json()
         self.assertTrue(SecurityBan.objects.filter(user=self.user, active=True).exists())
+        self.assertEqual(body["created_rules"][0]["kind_label"], "аккаунт")
+        self.assertEqual(body["created_rules"][0]["reason"], "test")
         self.assertEqual(victim.get("/api/me").status_code, 200)
         self.assertIsNone(victim.get("/api/me").json()["user"])
         relogin, relogin_token = self.csrf_client()
@@ -72,6 +75,9 @@ class SecurityControlTests(TestCase):
         self.assertEqual(blocked_login.status_code, 403)
         self.assertEqual(blocked_login.json()["ban"]["kind_label"], "аккаунт")
         self.assertEqual(blocked_login.json()["ban"]["reason"], "test")
+        audit = AuditLog.objects.filter(action="login_blocked").latest("id")
+        self.assertEqual(audit.details["kind_label"], "аккаунт")
+        self.assertEqual(audit.details["reason"], "test")
 
     def test_superuser_can_reset_admin_password_and_sessions(self):
         staff_client = Client()
@@ -82,10 +88,15 @@ class SecurityControlTests(TestCase):
             {"new_password": "AnotherStrongPass!42"},
         )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["target_username"], "staff")
+        self.assertEqual(response.json()["target_role"], "admin")
         self.staff.refresh_from_db()
         self.assertTrue(self.staff.check_password("AnotherStrongPass!42"))
         self.assertFalse(self.staff.check_password("StrongStaffPass!42"))
         self.assertIsNone(staff_client.get("/api/me").json()["user"])
+        audit = AuditLog.objects.filter(action="password_reset").latest("id")
+        self.assertEqual(audit.details["target_username"], "staff")
+        self.assertEqual(audit.details["target_role"], "admin")
 
     def test_login_records_hashed_trace_and_ignores_xff_by_default(self):
         client, token = self.csrf_client()
@@ -142,6 +153,15 @@ class SecurityControlTests(TestCase):
         self.assertEqual(blocked.status_code, 403)
         self.assertEqual(blocked.json()["ban"]["kind_label"], "IP-адрес")
         self.assertEqual(blocked.json()["ban"]["reason"], "abuse")
+        blocked_post = Client(enforce_csrf_checks=True).post(
+            "/api/auth/register",
+            data=json.dumps({"username": "newplayer", "password": "StrongNewPass!42"}),
+            content_type="application/json",
+            REMOTE_ADDR="203.0.113.10",
+            HTTP_X_CLIENT_SIGNATURE="new-signature",
+        )
+        self.assertEqual(blocked_post.status_code, 403)
+        self.assertEqual(blocked_post.json()["ban"]["kind_label"], "IP-адрес")
         blocked_page = Client().get("/", REMOTE_ADDR="203.0.113.10")
         self.assertContains(blocked_page, "IP-адрес", status_code=403)
         self.assertContains(blocked_page, "abuse", status_code=403)

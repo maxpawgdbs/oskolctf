@@ -1720,6 +1720,13 @@
     .adm-ban-rule { padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(248,113,113,.22); background: rgba(239,68,68,.08); }
     .adm-ban-rule-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; color: #fecaca; }
     .adm-ban-rule-reason { margin-top: 3px; color: rgba(254,226,226,.72); font-size: 12px; font-weight: 500; }
+    .adm-action-result { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(96,165,250,.24); background: rgba(96,165,250,.08); color: var(--textOnDark); }
+    .adm-action-result.danger { border-color: rgba(248,113,113,.28); background: rgba(248,113,113,.09); }
+    .adm-action-result.ok { border-color: rgba(74,222,128,.25); background: rgba(74,222,128,.08); }
+    .adm-action-result-title { font-size: 13px; font-weight: 900; margin-bottom: 6px; }
+    .adm-action-result-line { font-size: 12px; color: rgba(229,231,235,.72); line-height: 1.55; }
+    .adm-action-result-list { display: grid; gap: 6px; margin-top: 8px; }
+    .adm-action-result-rule { padding: 7px 9px; border-radius: 9px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); font-size: 12px; color: rgba(229,231,235,.76); }
     .adm-modal-help { margin: 6px 0 14px; color: rgba(229,231,235,.62); font-size: 12px; line-height: 1.55; }
     .adm-modal-warning { padding: 10px 12px; margin: 12px 0; border-radius: 10px; border: 1px solid rgba(251,191,36,.28); background: rgba(251,191,36,.09); color: #fde68a; font-size: 12px; line-height: 1.5; }
     .adm-btn-sm:focus-visible, .adm-btn:focus-visible, .adm-input:focus-visible, .adm-nav-item:focus-visible {
@@ -1928,6 +1935,30 @@
         await this.refreshCsrf();
       },
     });
+
+    async function readJSONResponse(response) {
+      const text = await response.text();
+      if (!text) return { ok: response.ok };
+      try {
+        return JSON.parse(text);
+      } catch {
+        return {
+          ok: false,
+          error: response.status === 403
+            ? 'Запрос отклонён защитой. Обнови страницу и попробуй ещё раз.'
+            : 'Сервер вернул не JSON. Код: ' + response.status,
+        };
+      }
+    }
+
+    async function apiJSON(url, options = {}) {
+      try {
+        const response = await fetch(url, options);
+        return await readJSONResponse(response);
+      } catch {
+        return { ok: false, error: 'Нет связи с сервером. Проверь, что сайт запущен, и повтори.' };
+      }
+    }
 
     /* ─────────────────── CONFETTI ─────────────────── */
     function launchConfetti(originEl) {
@@ -2154,10 +2185,12 @@
             return;
           }
           loading.value = true;
-          const res = await fetch('/api/auth/login', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
+          if (!store.csrf) await store.refreshCsrf();
+          const res = await apiJSON('/api/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf || '' },
             body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
-          }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+            credentials: 'same-origin',
+          });
           loading.value = false;
 
           if (res.ok) {
@@ -2255,10 +2288,12 @@
             return;
           }
           loading.value = true;
-          const res = await fetch('/api/auth/register', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
+          if (!store.csrf) await store.refreshCsrf();
+          const res = await apiJSON('/api/auth/register', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf || '' },
             body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
-          }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
+            credentials: 'same-origin',
+          });
           loading.value = false;
 
           if (res.ok) {
@@ -3147,10 +3182,14 @@
         const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', uploadedFile: '', uploadErr: '', pendingFile: null, f: emptyForm() });
         const passwordModal = reactive({ show: false, user: null, password: '', saving: false, error: '' });
         const banModal = reactive({ show: false, user: null, mode: 'account', reason: '', expires_hours: '', saving: false, error: '' });
+        const actionResult = reactive({ show: false, type: 'info', title: '', lines: [], rules: [] });
         const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки', dynamic_pricing: 'Динамические цены', journal: 'Журнал' };
 
         function postJSON(url, body) {
           return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf }, body: JSON.stringify(body), credentials: 'same-origin' });
+        }
+        function showActionResult(type, title, lines = [], rules = []) {
+          Object.assign(actionResult, { show: true, type, title, lines, rules });
         }
         async function loadMe() { const d = await fetch('/api/me').then(r => r.json()); if (d.user) me.value = d.user; }
         async function loadStats() { const d = await fetch('/api/admin/stats').then(r => r.json()); if (d.ok) Object.assign(stats, d); }
@@ -3244,9 +3283,16 @@
           }).then(r => r.json());
           banModal.saving = false;
           if (d.ok) {
-            store.toast(banModal.user.username + ': создано правил ' + d.ban_ids.length + ', сессий закрыто ' + d.sessions_revoked, 'ok');
+            const rules = d.created_rules || [];
+            showActionResult('danger', banModal.user.username + ': блокировка создана', [
+              'Сработает правил: ' + rules.length,
+              'Сессий закрыто: ' + d.sessions_revoked,
+              'Причина: ' + banModal.reason.trim(),
+            ], rules);
+            store.toast(banModal.user.username + ': забанен, правил ' + rules.length + ', сессий закрыто ' + d.sessions_revoked, 'ok');
             banModal.show = false;
             await loadUsers();
+            await loadAuditLog();
           } else banModal.error = d.error || 'Не удалось создать блокировку';
         }
         async function unbanUser(u) {
@@ -3265,9 +3311,35 @@
           const d = await postJSON('/api/admin/users/' + passwordModal.user.id + '/reset-password', { new_password: passwordModal.password }).then(r => r.json());
           passwordModal.saving = false;
           if (d.ok) {
+            showActionResult('ok', passwordModal.user.username + ': пароль изменён', [
+              'Роль цели: ' + (d.target_role || 'user'),
+              'Сессий закрыто: ' + d.sessions_revoked,
+              'Запись добавлена в журнал: «Пароль изменён суперпользователем».',
+            ]);
             store.toast(passwordModal.user.username + ': пароль изменён, сессий закрыто ' + d.sessions_revoked, 'ok');
             passwordModal.password = ''; passwordModal.show = false;
+            await loadAuditLog();
           } else passwordModal.error = d.error || 'Ошибка';
+        }
+        function auditSummary(e) {
+          const d = e.details || {};
+          if (e.action === 'ban_created') return 'Правил: ' + (d.rules_count || (d.ban_ids || []).length || 0) + '; причина: ' + (d.reason || 'не указана');
+          if (e.action === 'login_blocked') return 'Сработало: ' + (d.kind_label || d.kind || 'правило') + '; причина: ' + (d.reason || 'не указана');
+          if (e.action === 'password_reset') return 'Цель: ' + (d.target_username || e.target_user || 'пользователь') + '; роль: ' + (d.target_role || 'user') + '; сессий: ' + (d.sessions_revoked ?? 0);
+          if (e.action === 'ban_revoked') return 'Снято правило #' + (d.ban_id || '?') + ' (' + (d.kind || 'тип неизвестен') + ')';
+          if (Object.keys(d).length) return 'подробнее...';
+          return '—';
+        }
+        function prettyValue(val) {
+          if (val === null || val === undefined || val === '') return '—';
+          if (val === true) return 'да';
+          if (val === false) return 'нет';
+          if (Array.isArray(val)) {
+            if (val.length && typeof val[0] === 'object') return val.map(item => '#' + item.id + ' ' + (item.kind_label || item.kind || 'правило') + ' ' + (item.value || '')).join('; ');
+            return val.join(', ');
+          }
+          if (typeof val === 'object') return JSON.stringify(val);
+          return String(val);
         }
         function onDrop(e) { const f = e.dataTransfer.files[0]; if (f) readFileAsText(f); }
         function onFileSelect(e) { const f = e.target.files[0]; if (f) readFileAsText(f); }
@@ -3339,7 +3411,7 @@
           postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
+        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, actionResult, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, auditSummary, prettyValue, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -3371,6 +3443,21 @@
         <div class="user-chip" v-if="me"><img v-if="me.avatar" :src="me.avatar" alt=""><span v-else style="font-size:14px;">👤</span> {{ me.display_name || me.username }}</div>
       </div>
       <div class="adm-content">
+        <div v-if="actionResult.show" class="adm-action-result" :class="actionResult.type">
+          <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between;">
+            <div>
+              <div class="adm-action-result-title">{{ actionResult.title }}</div>
+              <div class="adm-action-result-line" v-for="line in actionResult.lines" :key="line">{{ line }}</div>
+            </div>
+            <button class="adm-btn-sm gray" @click="actionResult.show=false" aria-label="Закрыть">×</button>
+          </div>
+          <div class="adm-action-result-list" v-if="actionResult.rules && actionResult.rules.length">
+            <div class="adm-action-result-rule" v-for="rule in actionResult.rules" :key="rule.id">
+              <b>#{{ rule.id }} {{ rule.kind_label }}</b>
+              <span style="color:rgba(229,231,235,.55);"> · {{ rule.value }} · {{ rule.permanent ? 'бессрочно' : formatBanExpiry(rule.expires_at) }}</span>
+            </div>
+          </div>
+        </div>
 
         <!-- DASHBOARD -->
         <div v-if="page === 'dashboard'">
@@ -3648,9 +3735,8 @@
                       <span v-else-if="e.target_user">👤 {{ e.target_user }}</span>
                       <span v-else style="color:rgba(229,231,235,.25);">—</span>
                     </td>
-                    <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.5);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                      <span v-if="Object.keys(e.details||{}).length" style="color:rgba(96,165,250,.6);font-size:11px;">&#x1F4CE; подробнее…</span>
-                      <span v-else style="color:rgba(229,231,235,.2);">—</span>
+                    <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.58);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="auditSummary(e)">
+                      {{ auditSummary(e) }}
                     </td>
                     <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.4);">{{ e.ip || '—' }}</td>
                   </tr>
@@ -3754,7 +3840,7 @@
           <div v-else style="border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden;">
             <div v-for="(val, key) in auditDetail.details" :key="key" style="display:flex;align-items:baseline;gap:14px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04);">
               <span style="min-width:160px;flex-shrink:0;font-size:11px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.04em;">{{ FIELD_LABELS[key] || key }}</span>
-              <span style="font-size:12px;font-family:ui-monospace,monospace;color:var(--textOnDark);word-break:break-all;">{{ val === null ? '—' : val === true ? 'да' : val === false ? 'нет' : String(val) }}</span>
+              <span style="font-size:12px;font-family:ui-monospace,monospace;color:var(--textOnDark);word-break:break-all;">{{ prettyValue(val) }}</span>
             </div>
           </div>
         </div>
