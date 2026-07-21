@@ -5,7 +5,7 @@ from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 
-from ctf.models import AuditLog, SecurityBan, User
+from ctf.models import AuditLog, SecurityBan, Solve, Task, User
 
 
 @override_settings(
@@ -127,6 +127,28 @@ class SecurityControlTests(TestCase):
         audit = AuditLog.objects.filter(action="password_reset").latest("id")
         self.assertEqual(audit.details["target_username"], "staff")
         self.assertEqual(audit.details["target_role"], "admin")
+
+    def test_banned_users_are_hidden_from_leaderboard(self):
+        task = Task.objects.create(
+            task_id=9001,
+            name="Leaderboard test",
+            category="Web",
+            difficulty="Лёгкое",
+            description="",
+            points=100,
+            flag="oskolctf{leaderboard}",
+            active=True,
+        )
+        Solve.objects.create(user=self.user, task=task, points_awarded=100)
+        viewer = Client()
+        viewer.force_login(self.staff)
+
+        before = viewer.get("/api/board").json()["leaderboard"]
+        self.assertIn("player", [row["username"] for row in before])
+
+        SecurityBan.objects.create(kind=SecurityBan.ACCOUNT, user=self.user, reason="hide from board")
+        after = viewer.get("/api/board").json()["leaderboard"]
+        self.assertNotIn("player", [row["username"] for row in after])
 
     def test_login_records_hashed_trace_and_ignores_xff_by_default(self):
         client, token = self.csrf_client()

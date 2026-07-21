@@ -15,7 +15,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.utils import timezone
@@ -125,6 +125,13 @@ def _rate_limited(key, limit, seconds, increment=False):
         else:
             cache.set(cache_key, 1, seconds)
     return count >= limit
+
+
+def active_user_ban_exists():
+    return SecurityBan.objects.filter(
+        active=True,
+        user=OuterRef("pk"),
+    ).filter(Q(expires_at=None) | Q(expires_at__gt=timezone.now()))
 
 
 def _sync_tasks_file_safe():
@@ -306,9 +313,11 @@ def api_board(request):
     # Лидерборд
     lb = (
         User.objects.annotate(
+            has_active_ban=Exists(active_user_ban_exists()),
             score=Sum("solves__task__points"),
             solved_count=Count("solves"),
         )
+        .filter(has_active_ban=False)
         .order_by("-score", "-solved_count", "username")[:50]
     )
     leaderboard = [
