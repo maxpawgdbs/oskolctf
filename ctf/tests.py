@@ -1,7 +1,9 @@
 import json
+from unittest.mock import patch
 
 from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 
 from ctf.models import AuditLog, SecurityBan, User
 
@@ -34,13 +36,13 @@ class SecurityControlTests(TestCase):
             HTTP_USER_AGENT="security-test-agent",
         )
 
-    def test_login_requires_csrf(self):
+    def test_login_without_csrf_is_allowed_for_auth_flow(self):
         response = Client(enforce_csrf_checks=True).post(
             "/api/auth/login",
             data=json.dumps({"username": "player", "password": "StrongPlayerPass!42"}),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
 
     def test_staff_cannot_ban_or_reset_password(self):
         client, token = self.csrf_client(self.staff)
@@ -78,6 +80,15 @@ class SecurityControlTests(TestCase):
         audit = AuditLog.objects.filter(action="login_blocked").latest("id")
         self.assertEqual(audit.details["kind_label"], "аккаунт")
         self.assertEqual(audit.details["reason"], "test")
+
+    def test_account_ban_middleware_checks_session_before_auth_middleware(self):
+        client = Client()
+        client.force_login(self.user)
+        SecurityBan.objects.create(kind=SecurityBan.ACCOUNT, user=self.user, reason="manual")
+        response = client.get("/api/me")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["ban"]["kind_label"], "аккаунт")
+        self.assertEqual(response.json()["ban"]["reason"], "manual")
 
     def test_superuser_can_reset_admin_password_and_sessions(self):
         staff_client = Client()
@@ -122,6 +133,16 @@ class SecurityControlTests(TestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.avatar)
 
+    def test_create_superusers_upgrades_existing_named_accounts(self):
+        existing = User.objects.create_user("nekoty", password="OldStrongPass!42", is_staff=False, is_superuser=False)
+        with override_settings(DEBUG=False):
+            with patch.dict("os.environ", {"SUPERUSER_PASSWORD": "StrongRootPass!42"}):
+                call_command("create_superusers")
+        existing.refresh_from_db()
+        self.assertTrue(existing.is_staff)
+        self.assertTrue(existing.is_superuser)
+        self.assertTrue(existing.is_active)
+
     def test_trace_ban_blocks_observed_ip_and_signature(self):
         victim = Client(enforce_csrf_checks=True)
         token = victim.get("/api/csrf", REMOTE_ADDR="203.0.113.10").json()["csrf"]
@@ -144,6 +165,16 @@ class SecurityControlTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(SecurityBan.objects.filter(kind=SecurityBan.IP, value="203.0.113.10/32").exists())
         self.assertTrue(SecurityBan.objects.filter(kind=SecurityBan.SIGNATURE).exists())
+
+        admin_same_ip = Client()
+        admin_same_ip.force_login(self.superuser)
+        admin_response = admin_same_ip.get(
+            "/api/admin/users",
+            REMOTE_ADDR="203.0.113.10",
+            HTTP_X_CLIENT_SIGNATURE="victim-signature",
+        )
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertTrue(admin_response.json()["can_manage_security"])
 
         blocked = Client().get(
             "/api/csrf",

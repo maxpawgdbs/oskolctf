@@ -17,8 +17,10 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from ctf.models import SecurityBan, User, Task, Solve, DynamicPricingConfig, AuditLog, log_action, load_tasks_json, sync_tasks_from_json, dump_tasks_to_json
 from ctf.security import BAN_KIND_LABELS, find_matching_ban, get_client_ip, public_ban_payload, record_client_trace, revoke_user_sessions
@@ -161,6 +163,7 @@ def api_csrf(request):
 
 # ── /api/auth/login ───────────────────────────────────────────────────────────────
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ApiLogin(View):
     def post(self, request):
         try:
@@ -205,6 +208,7 @@ class ApiLogin(View):
 
 # ── /api/auth/register ────────────────────────────────────────────────────────────
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ApiRegister(View):
     def post(self, request):
         try:
