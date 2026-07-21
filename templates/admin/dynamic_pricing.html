@@ -1,0 +1,82 @@
+{% extends "admin/base_site.html" %}
+{% block extrastyle %}
+<style>
+    .decay-active {
+        color: #c00;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div style="max-width:700px;">
+    <h1>⚡ Динамические цены</h1>
+    <p style="color:#666;">Чем больше участников решили задание — тем меньше оно стоит. Очки фиксируются в момент сдачи
+        флага.</p>
+
+    {% if error %}
+    <p class="errornote">{{ error }}</p>
+    {% endif %}
+    {% if success %}
+    <p class="success" style="color:#007f00;background:#e8f5e9;padding:8px 12px;border-radius:4px;margin-bottom:12px;">✓
+        {{ success }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Настройки</h2>
+            <div class="form-row">
+                <div>
+                    <label for="id_enabled"><strong>Включить динамические цены</strong></label>
+                    <input type="checkbox" id="id_enabled" name="enabled" {% if cfg.enabled %}checked{% endif %}>
+                    <p class="help">Если включено — каждое новое решение снижает стоимость задания.</p>
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="id_decay">Снижение за каждое решение (очки)</label>
+                <input type="number" id="id_decay" name="decay_per_solve" value="{{ cfg.decay_per_solve }}" min="0"
+                    max="10000" style="width:120px;">
+                <p class="help">На сколько очков падает цена с каждым новым решением. Например, 5 = -5 очков за каждый
+                    solve.</p>
+            </div>
+            <div class="form-row">
+                <label for="id_min_pct">Минимальная цена (% от базовой)</label>
+                <input type="number" id="id_min_pct" name="min_percent" value="{{ cfg.min_percent }}" min="1" max="100"
+                    style="width:120px;">
+                <p class="help">Цена не опустится ниже этого процента от базовой стоимости (1–100). Например, 20 =
+                    минимум 20% от базы.</p>
+            </div>
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="💾 Сохранить настройки" class="default">
+        </div>
+    </form>
+
+    {% if tasks_preview %}
+    <fieldset class="module">
+        <h2>Текущие цены заданий (превью)</h2>
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f8f8;">
+                    <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #ddd;">Задание</th>
+                    <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #ddd;">Базовая цена</th>
+                    <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #ddd;">Решений</th>
+                    <th style="padding:8px 10px;text-align:center;border-bottom:1px solid #ddd;">Текущая цена</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tasks_preview %}
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:7px 10px;">{{ t.name }}</td>
+                    <td style="padding:7px 10px;text-align:center;">{{ t.base }}</td>
+                    <td style="padding:7px 10px;text-align:center;">{{ t.solves }}</td>
+                    <td style="padding:7px 10px;text-align:center;" {% if t.current < t.base %}class="decay-active" {%
+                        endif %}>{{ t.current }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </fieldset>
+    {% endif %}
+</div>
+{% endblock %}

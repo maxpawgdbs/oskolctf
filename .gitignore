@@ -28,7 +28,10 @@ secret_key
 .DS_Store
 Thumbs.db
 desktop.ini
-run.bat
+
+# Local deploy scripts (contain server IP/credentials)
+push-deploy.bat
+
 
 # Editor
 .vscode/
@@ -42,3 +45,8 @@ run.bat
 # Явно включаем в репо
 !flags.txt
 !css/bg.jpg
+!run.battasks.json
+data/
+tasks.json
+data/
+

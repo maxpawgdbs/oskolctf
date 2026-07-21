@@ -1269,7 +1269,7 @@
       font-size: 11px;
       font-weight: 800;
       color: rgba(229, 231, 235, .45);
-      padding: 0 10px 10px;
+      padding: 12px 10px 10px;
       text-transform: uppercase;
       letter-spacing: .06em;
     }
@@ -1281,6 +1281,16 @@
       border-bottom: 1px solid rgba(255, 255, 255, .06);
       color: var(--textOnDark);
       vertical-align: middle;
+    }
+
+    .adm-table th:first-child,
+    .adm-table td:first-child {
+      padding-left: 16px;
+    }
+
+    .adm-table th:last-child,
+    .adm-table td:last-child {
+      padding-right: 16px;
     }
 
     .adm-table tr:last-child td {
@@ -1329,6 +1339,7 @@
       padding: 2px 8px;
       font-size: 11px;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     .adm-btn-sm {
@@ -1466,6 +1477,17 @@
     textarea.adm-input {
       resize: vertical;
       min-height: 90px;
+    }
+
+    select.adm-input {
+      background: rgba(15, 15, 25, .9);
+      color: var(--textOnDark);
+      cursor: pointer;
+    }
+
+    select.adm-input option {
+      background: #1a1a2e;
+      color: var(--textOnDark);
     }
 
     .adm-toggle {
@@ -1691,7 +1713,114 @@
     const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
     const { createRouter, createWebHistory, useRouter, useRoute, RouterLink } = VueRouter;
 
+    /* ─────────────────── CHART HELPER ─────────────────── */
+    function buildSolveChart(profileVal) {
+      const tasks = profileVal?.solved_tasks;
+      if (!tasks || tasks.length === 0) return null;
+      const W = 620, H = 220;
+      const padL = 52, padR = 20, padT = 20, padB = 46;
+      const cW = W - padL - padR, cH = H - padT - padB;
+
+      const dates = tasks.map(t => new Date(t.solved_at).getTime());
+      const minDate = Math.min(...dates);
+      const lastDate = Math.max(...dates);
+      const rangeMs = lastDate - minDate || 86400000;
+      const extend = Math.max(rangeMs * 0.08, 3600000 * 3);
+      const maxDate = lastDate + extend;
+      const dRange = maxDate - minDate;
+      const maxScore = tasks[tasks.length - 1].cumulative_score || 1;
+
+      const cx = ts => padL + (ts - minDate) / dRange * cW;
+      const cy = s => padT + cH - (s / maxScore) * cH;
+
+      // Points: (minDate,0), each solve, (maxDate, lastScore)
+      const pts = [{ x: cx(minDate), y: cy(0) }];
+      for (const t of tasks) pts.push({ x: cx(new Date(t.solved_at).getTime()), y: cy(t.cumulative_score) });
+      pts.push({ x: cx(maxDate), y: cy(tasks[tasks.length - 1].cumulative_score) });
+
+      // ── Monotone cubic Hermite (Fritsch–Carlson) ────────────────────────────
+      const n = pts.length;
+      const dxArr = [], slopeArr = [], m = new Array(n);
+      for (let i = 0; i < n - 1; i++) {
+        dxArr[i] = pts[i + 1].x - pts[i].x;
+        slopeArr[i] = dxArr[i] > 0.5 ? (pts[i + 1].y - pts[i].y) / dxArr[i] : 0;
+      }
+      m[0] = slopeArr[0];
+      m[n - 1] = slopeArr[n - 2];
+      for (let i = 1; i < n - 1; i++) {
+        m[i] = slopeArr[i - 1] * slopeArr[i] <= 0 ? 0 : (slopeArr[i - 1] + slopeArr[i]) / 2;
+      }
+      for (let i = 0; i < n - 1; i++) {
+        if (Math.abs(slopeArr[i]) < 1e-10) { m[i] = m[i + 1] = 0; continue; }
+        const a = m[i] / slopeArr[i], b = m[i + 1] / slopeArr[i], sq = a * a + b * b;
+        if (sq > 9) { const tau = 3 / Math.sqrt(sq); m[i] = tau * a * slopeArr[i]; m[i + 1] = tau * b * slopeArr[i]; }
+      }
+
+      // Build SVG path with cubic bezier segments
+      let path = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+      for (let i = 0; i < n - 1; i++) {
+        const h = dxArr[i];
+        path += ` C ${(pts[i].x + h / 3).toFixed(2)},${(pts[i].y + m[i] * h / 3).toFixed(2)}`
+          + ` ${(pts[i + 1].x - h / 3).toFixed(2)},${(pts[i + 1].y - m[i + 1] * h / 3).toFixed(2)}`
+          + ` ${pts[i + 1].x.toFixed(2)},${pts[i + 1].y.toFixed(2)}`;
+      }
+      const linePath = path;
+      const areaPath = path + ` L ${pts[n - 1].x.toFixed(2)},${cy(0).toFixed(2)} L ${pts[0].x.toFixed(2)},${cy(0).toFixed(2)} Z`;
+
+      // Dots for tooltip
+      const dots = tasks.map(t => ({
+        x: cx(new Date(t.solved_at).getTime()), y: cy(t.cumulative_score),
+        name: t.name, pts: t.points, score: t.cumulative_score,
+      }));
+
+      // Y grid (6 levels)
+      const gridY = [0, 0.2, 0.4, 0.6, 0.8, 1].map(frac => {
+        const score = Math.round(maxScore * frac);
+        return { y: cy(score), lbl: score >= 1000 ? (score / 1000).toFixed(1) + 'k' : String(score) };
+      });
+
+      // X grid — adaptive interval by day range
+      const hourMs = 3600000, dayMs = 86400000;
+      let tickMs;
+      if (dRange <= dayMs) tickMs = 4 * hourMs;
+      else if (dRange <= 3 * dayMs) tickMs = 12 * hourMs;
+      else if (dRange <= 14 * dayMs) tickMs = dayMs;
+      else if (dRange <= 60 * dayMs) tickMs = 2 * dayMs;
+      else tickMs = 7 * dayMs;
+
+      const startTick = Math.ceil(minDate / tickMs) * tickMs;
+      const gridX = [];
+      for (let ts = startTick; ts <= maxDate; ts += tickMs) {
+        const xPos = cx(ts);
+        if (xPos < padL + 4 || xPos > W - padR - 2) continue;
+        const date = new Date(ts);
+        const label = tickMs >= dayMs
+          ? date.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+          : date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+        gridX.push({ x: xPos, label });
+      }
+
+      return { W, H, padL, padR, padT, padB, cH, linePath, areaPath, dots, gridY, gridX };
+    }
+
     /* ─────────────────── STORE ─────────────────── */
+    // Stable, random browser identifier. It is a secondary abuse signal, not authentication.
+    let clientSignature = localStorage.getItem('oskolctf-client-signature');
+    if (!clientSignature) {
+      clientSignature = crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('oskolctf-client-signature', clientSignature);
+    }
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.startsWith('/')) {
+        const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+        headers.set('X-Client-Signature', clientSignature);
+        init = { ...init, headers };
+      }
+      return nativeFetch(input, init);
+    };
+
     const store = reactive({
       user: null,
       csrf: null,
@@ -1723,7 +1852,7 @@
       async logout() {
         await fetch('/api/auth/logout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
           body: JSON.stringify({ csrf: this.csrf }),
         });
         this.user = null;
@@ -1921,8 +2050,8 @@
 
     function validatePassword(v, isRegister = false) {
       if (!v) return 'Введи пароль';
-      if (v.length < 6) return 'Минимум 6 символов';
-      if (v.length > 16) return 'Максимум 16 символов';
+      if (v.length < 10) return 'Минимум 10 символов';
+      if (v.length > 128) return 'Максимум 128 символов';
       if (!isRegister) return '';
       if (WEAK_PASSWORDS.has(v.toLowerCase())) return 'Слишком простой пароль';
       if (!/[a-zA-Z]/.test(v)) return 'Пароль должен содержать хотя бы одну букву';
@@ -1957,7 +2086,7 @@
           }
           loading.value = true;
           const res = await fetch('/api/auth/login', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
           loading.value = false;
@@ -1998,7 +2127,7 @@
             </div>
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
-              <input class="input" v-model="password" type="password" placeholder="••••••••" autocomplete="current-password" maxlength="16"
+              <input class="input" v-model="password" type="password" placeholder="••••••••••" autocomplete="current-password" maxlength="128"
                 :style="{background:'rgba(255,255,255,.07)',borderColor:passwordErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
               <span v-if="passwordErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ passwordErr }}</span>
             </div>
@@ -2055,7 +2184,7 @@
           }
           loading.value = true;
           const res = await fetch('/api/auth/register', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ username: username.value, password: password.value, csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
           loading.value = false;
@@ -2095,7 +2224,7 @@
             </div>
             <div class="field">
               <label class="label" style="color:rgba(229,231,235,.7);">Пароль</label>
-              <input class="input" v-model="password" type="password" placeholder="6–16 символов" autocomplete="new-password" maxlength="16"
+              <input class="input" v-model="password" type="password" placeholder="минимум 10 символов" autocomplete="new-password" maxlength="128"
                 :style="{background:'rgba(255,255,255,.07)',borderColor:passwordErr?'rgba(239,68,68,.6)':'rgba(255,255,255,.13)',color:'var(--textOnDark)'}">
               <span v-if="passwordErr" style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px;">{{ passwordErr }}</span>
               <div v-if="password && !passwordErr" style="margin-top:8px;">
@@ -2134,6 +2263,7 @@
         const tasks = ref([]);
         const board = ref([]);
         const pageLoad = ref(true);
+        const announcement = ref('');
         const submitting = ref(false);
         const shakeForm = ref(false);
         const popForm = ref(false);
@@ -2174,6 +2304,9 @@
           board.value = res.leaderboard;
           if (res.user) store.user = res.user;
           pageLoad.value = false;
+          // Загружаем анонс
+          const ann = await fetch('/api/announcement').then(r => r.json()).catch(() => null);
+          if (ann) announcement.value = ann.text || '';
         }
 
         async function submitFlag(e) {
@@ -2181,7 +2314,7 @@
           submitting.value = true;
           const btn = e.submitter;
           const res = await fetch('/api/submit', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ flag: flag.value.trim(), csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: 'Ошибка сети' }));
           submitting.value = false;
@@ -2205,7 +2338,7 @@
           submitting.value = true;
           const btn = e.submitter;
           const res = await fetch('/api/submit', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf },
             body: JSON.stringify({ flag: modalFlag.value.trim(), csrf: store.csrf }),
           }).then(r => r.json()).catch(() => ({ ok: false, error: '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438' }));
           submitting.value = false;
@@ -2249,7 +2382,7 @@
           activeModal, activeCat, solvedCount, totalCount, myScore, progress,
           categories, filteredTasks, catCount, catClass, catIcon, diffClass,
           submitFlag, logout, openModal, closeModal,
-          modalFlag, modalShake, submitModalFlag
+          modalFlag, modalShake, submitModalFlag, announcement
         };
       },
       template: `
@@ -2265,7 +2398,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);font-size:12px;font-weight:800;color:var(--textOnDark);">
-                👤 {{ store.user?.username }}
+                👤 {{ store.user?.display_name || store.user?.username }}
               </div>
               <router-link to="/profile" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">Профиль</router-link>
               <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
@@ -2284,6 +2417,12 @@
 
       <!-- Content -->
       <div v-else class="container" style="padding:22px 0 64px;">
+
+        <!-- Announcement banner -->
+        <div v-if="announcement" style="margin-bottom:16px;padding:12px 18px;border-radius:12px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:#fde68a;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">📢</span>
+          <span>{{ announcement }}</span>
+        </div>
 
         <!-- Stats bar -->
         <div class="b-stats">
@@ -2418,7 +2557,7 @@
                       </td>
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);"
                         :style="{color:r.username===store.user?.username?'#a5b4fc':'var(--textOnDark)',fontWeight:r.username===store.user?.username?'800':'600'}">
-                        {{ r.username }}
+                        {{ r.display_name || r.username }}
                         <span v-if="r.username===store.user?.username" style="font-size:10px;opacity:.45;margin-left:4px;">(ты)</span>
                       </td>
                       <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
@@ -2616,11 +2755,13 @@
 
         async function logout() { await store.logout(); router.push('/'); }
 
+        const solveChart = computed(() => buildSolveChart(profile.value));
+
         onMounted(loadProfile);
 
         return {
           store, router, profile, loading, editMode, editName, editBio,
-          pwMode, oldPw, newPw, saving, fileInput,
+          pwMode, oldPw, newPw, saving, fileInput, solveChart,
           saveProfile, uploadAvatar, changePassword, logout
         };
       },
@@ -2634,7 +2775,7 @@
               <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">← Борд</router-link>
+              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;"> Борд</router-link>
               <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
             </div>
@@ -2697,6 +2838,41 @@
           </div>
         </div>
 
+        <!-- Progress chart -->
+        <div v-if="solveChart" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:20px;">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
+          <div style="padding:12px 16px 8px;">
+            <svg :viewBox="'0 0 '+solveChart.W+' '+solveChart.H" style="width:100%;height:auto;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="profGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%"   stop-color="#3b82f6" stop-opacity="0.22"/>
+                  <stop offset="80%"  stop-color="#3b82f6" stop-opacity="0.04"/>
+                  <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <!-- y grid -->
+              <line v-for="g in solveChart.gridY" :key="'yg'+g.lbl" :x1="solveChart.padL" :y1="g.y" :x2="solveChart.W-solveChart.padR" :y2="g.y" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+              <!-- x grid -->
+              <line v-for="g in solveChart.gridX" :key="'xg'+g.x" :x1="g.x" :y1="solveChart.padT" :x2="g.x" :y2="solveChart.H-solveChart.padB" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+              <!-- axes -->
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H-solveChart.padB+1" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.H-solveChart.padB" :x2="solveChart.W-solveChart.padR" :y2="solveChart.H-solveChart.padB" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <!-- area -->
+              <path :d="solveChart.areaPath" fill="url(#profGrad)"/>
+              <!-- line -->
+              <path :d="solveChart.linePath" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- dots (tooltip only, barely visible) -->
+              <circle v-for="(dot,i) in solveChart.dots" :key="i" :cx="dot.x" :cy="dot.y" r="2.5" fill="#93c5fd" opacity="0.7">
+                <title>{{ dot.name }} (+{{ dot.pts }} pts · итого {{ dot.score }})</title>
+              </circle>
+              <!-- y labels -->
+              <text v-for="g in solveChart.gridY" :key="'yl'+g.lbl" :x="solveChart.padL-6" :y="g.y+3.5" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="end">{{ g.lbl }}</text>
+              <!-- x labels -->
+              <text v-for="g in solveChart.gridX" :key="'xl'+g.x" :x="g.x" :y="solveChart.H-8" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="middle">{{ g.label }}</text>
+            </svg>
+          </div>
+        </div>
+
         <!-- Solved tasks -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;">
           <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">Решённые задания ({{ profile.solved_tasks?.length || 0 }})</div>
@@ -2741,8 +2917,9 @@
         }
 
         async function logout() { await store.logout(); router.push('/'); }
+        const solveChart = computed(() => buildSolveChart(profile.value));
         onMounted(loadProfile);
-        return { store, router, profile, loading, notFound, logout };
+        return { store, router, profile, loading, notFound, logout, solveChart };
       },
       template: `
     <div class="board-root">
@@ -2754,7 +2931,7 @@
               <span style="font-size:11px;color:var(--mutedOnDark);font-weight:600;">борд · кейсы · таблица лидеров</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">← Борд</router-link>
+              <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;"> Борд</router-link>
               <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
             </div>
@@ -2767,7 +2944,7 @@
       <div v-else-if="notFound" class="container" style="padding:80px 0;text-align:center;color:var(--mutedOnDark);">
         <div style="font-size:40px;margin-bottom:12px;">🔎</div>
         <div style="font-size:18px;font-weight:800;color:var(--textOnDark);">Пользователь не найден</div>
-        <router-link to="/board" style="display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;">← На борд</router-link>
+        <router-link to="/board" style="display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;"> На борд</router-link>
       </div>
       <div v-else-if="profile" class="container" style="padding:32px 0 64px;">
         <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:28px;flex-wrap:wrap;">
@@ -2787,6 +2964,41 @@
               <div style="font-size:13px;color:var(--textOnDark);"><b style="color:#4ade80;font-size:17px;">{{ profile.solve_count }}</b> <span style="color:var(--mutedOnDark);">решено</span></div>
             </div>
           </div>
+        </div>
+        <!-- Progress chart -->
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:16px;">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
+          <div v-if="solveChart" style="padding:12px 16px 8px;">
+            <svg :viewBox="'0 0 '+solveChart.W+' '+solveChart.H" style="width:100%;height:auto;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="pubProfGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%"   stop-color="#3b82f6" stop-opacity="0.22"/>
+                  <stop offset="80%"  stop-color="#3b82f6" stop-opacity="0.04"/>
+                  <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <!-- y grid -->
+              <line v-for="g in solveChart.gridY" :key="'yg'+g.lbl" :x1="solveChart.padL" :y1="g.y" :x2="solveChart.W-solveChart.padR" :y2="g.y" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+              <!-- x grid -->
+              <line v-for="g in solveChart.gridX" :key="'xg'+g.x" :x1="g.x" :y1="solveChart.padT" :x2="g.x" :y2="solveChart.H-solveChart.padB" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+              <!-- axes -->
+              <line :x1="solveChart.padL" :y1="solveChart.padT" :x2="solveChart.padL" :y2="solveChart.H-solveChart.padB+1" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <line :x1="solveChart.padL" :y1="solveChart.H-solveChart.padB" :x2="solveChart.W-solveChart.padR" :y2="solveChart.H-solveChart.padB" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <!-- area -->
+              <path :d="solveChart.areaPath" fill="url(#pubProfGrad)"/>
+              <!-- line -->
+              <path :d="solveChart.linePath" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- dots (tooltip only) -->
+              <circle v-for="(dot,i) in solveChart.dots" :key="i" :cx="dot.x" :cy="dot.y" r="2.5" fill="#93c5fd" opacity="0.7">
+                <title>{{ dot.name }} (+{{ dot.pts }} pts · итого {{ dot.score }})</title>
+              </circle>
+              <!-- y labels -->
+              <text v-for="g in solveChart.gridY" :key="'yl'+g.lbl" :x="solveChart.padL-6" :y="g.y+3.5" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="end">{{ g.lbl }}</text>
+              <!-- x labels -->
+              <text v-for="g in solveChart.gridX" :key="'xl'+g.x" :x="g.x" :y="solveChart.H-8" fill="rgba(229,231,235,.38)" font-size="9" text-anchor="middle">{{ g.label }}</text>
+            </svg>
+          </div>
+          <div v-else style="padding:14px 18px;font-size:13px;color:rgba(229,231,235,.35);">Нет данных</div>
         </div>
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;">
           <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">Решённые задания ({{ profile.solved_tasks?.length || 0 }})</div>
@@ -2824,11 +3036,42 @@
         const importing = ref(false);
         const importResult = ref(null);
         const modal = reactive({ show: false, title: '', text: '', action: () => { } });
+        const dpConfig = reactive({ enabled: false, decay_per_solve: 5, min_percent: 20 });
+        const dpPreview = ref([]);
+        const dpSaving = ref(false);
+        const auditLog = ref([]);
+        const auditTotal = ref(0);
+        const auditPage = ref(1);
+        const auditFilter = ref('');
+        const auditChoices = ref([]);
+        const auditLoading = ref(false);
+        const auditDetail = ref(null);
+
+        const FIELD_LABELS = {
+          name: 'Название', category: 'Категория', difficulty: 'Сложность',
+          description: 'Описание', points: 'Очки', flag: 'Флаг',
+          url: 'URL страницы', active: 'Активно', hide_open_button: 'Скрыть кнопку',
+          author: 'Автор', author_url: 'Ссылка автора',
+          username: 'Логин', display_name: 'Отображаемое имя',
+          task_id: 'ID задания', task_name: 'Название задания',
+          points_awarded: 'Очков получено', base_points: 'Базовые очки',
+          is_staff: 'Статус admin', changed_by: 'Изменил',
+          deleted_count: 'Удалено записей', reset_by: 'Сброс выполнил',
+          flag_len: 'Длина флага', solve_count: 'Решений было',
+          bio: 'О себе', avatar_changed: 'Аватар изменён',
+          text: 'Текст баннера', cleared: 'Баннер удалён',
+          enabled: 'Включено', decay_per_solve: 'Снижение/решение', min_percent: 'Мин. %',
+        };
         const categories = ['Web', 'Разное', 'Крипто', 'Форензика', 'Реверс', 'Pwn', 'ОСИНТ'];
         const difficulties = ['Очень лёгкое', 'Лёгкое', 'Среднее', 'Сложное', 'Очень сложное'];
-        const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
-        const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', f: emptyForm() });
-        const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки' };
+        function extractFlagInner(flag) {
+          if (flag.startsWith('oskolctf{') && flag.endsWith('}')) return flag.slice(9, -1);
+          return flag;
+        }
+        const emptyForm = () => ({ task_id: '', name: '', category: 'Разное', difficulty: 'Среднее', description: '', points: 100, flag: '', flagInner: '', url: '', active: true, hide_open_button: false, author: '', author_url: '' });
+        const taskModal = reactive({ show: false, mode: 'create', saving: false, err: '', uploadedFile: '', uploadErr: '', pendingFile: null, f: emptyForm() });
+        const passwordModal = reactive({ show: false, user: null, password: '', saving: false, error: '' });
+        const pageTitles = { dashboard: 'Дашборд', tasks: 'Задания', create_task: 'Создать задание', users: 'Пользователи', import: 'Импорт JSON', settings: 'Настройки', dynamic_pricing: 'Динамические цены', journal: 'Журнал' };
 
         function postJSON(url, body) {
           return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf }, body: JSON.stringify(body), credentials: 'same-origin' });
@@ -2854,22 +3097,54 @@
           if (!d.ok) { t.active = !t.active; store.toast(d.error || 'Ошибка', 'err'); } else store.toast(t.active ? t.name + ' активировано' : t.name + ' скрыто', t.active ? 'ok' : 'info');
         }
         async function savePts(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/save', { points: t._pts }).then(r => r.json()); if (d.ok) store.toast(t.name + ': очки → ' + t._pts, 'ok'); else store.toast(d.error || 'Ошибка', 'err'); }
-        function openCreateTask() { taskModal.f = emptyForm(); taskModal.mode = 'create'; taskModal.err = ''; taskModal.show = true; }
-        function openEditTask(t) { taskModal.f = { task_id: t.id, name: t.name, category: t.category, difficulty: t.difficulty, description: t.description || '', points: t.points || t._pts, flag: t.flag || '', url: t.url || '', active: t.active, hide_open_button: t.hide_open_button || false, author: t.author || '', author_url: t.author_url || '' }; taskModal.mode = 'edit'; taskModal.err = ''; taskModal.show = true; }
+        function openCreateTask() { taskModal.f = emptyForm(); taskModal.mode = 'create'; taskModal.err = ''; taskModal.uploadedFile = ''; taskModal.uploadErr = ''; taskModal.pendingFile = null; taskModal.show = true; }
+        function openEditTask(t) { taskModal.f = { task_id: t.id, name: t.name, category: t.category, difficulty: t.difficulty, description: t.description || '', points: t.points || t._pts, flag: t.flag || '', flagInner: extractFlagInner(t.flag || ''), url: t.url || '', active: t.active, hide_open_button: t.hide_open_button || false, author: t.author || '', author_url: t.author_url || '' }; taskModal.mode = 'edit'; taskModal.err = ''; taskModal.uploadedFile = t.file ? t.file.split('/').pop() : ''; taskModal.uploadErr = ''; taskModal.show = true; }
         async function saveTaskModal() {
           const f = taskModal.f;
           if (!f.name.trim()) { taskModal.err = 'Название обязательно'; return; }
-          if (!f.flag.trim()) { taskModal.err = 'Флаг обязателен'; return; }
+          if (!f.flagInner.trim()) { taskModal.err = 'Флаг обязателен'; return; }
+          const fullFlag = 'oskolctf{' + f.flagInner.trim() + '}';
           taskModal.saving = true; taskModal.err = '';
           try {
             if (taskModal.mode === 'create') {
-              const d = await postJSON('/api/admin/tasks/create', { task_id: f.task_id ? parseInt(f.task_id) : undefined, name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
-              if (d.ok) { store.toast('Задание «' + d.name + '» создано (ID ' + d.task_id + ')', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
+              const d = await postJSON('/api/admin/tasks/create', { task_id: f.task_id ? parseInt(f.task_id) : undefined, name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: fullFlag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
+              if (d.ok) {
+                // Если выбран файл — загружаем сразу после создания
+                if (taskModal.pendingFile) {
+                  const fd = new FormData(); fd.append('file', taskModal.pendingFile);
+                  const up = await fetch('/api/admin/tasks/' + d.task_id + '/upload-file', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, body: fd, credentials: 'same-origin' }).then(r => r.json()).catch(() => null);
+                  if (up && up.ok) store.toast('Задание «' + d.name + '» создано, файл «' + up.filename + '» загружен (ID ' + d.task_id + ')', 'ok');
+                  else store.toast('Задание «' + d.name + '» создано, но файл не загрузился: ' + (up?.error || 'ошибка'), 'info');
+                } else {
+                  store.toast('Задание «' + d.name + '» создано (ID ' + d.task_id + ')', 'ok');
+                }
+                taskModal.show = false; tasks.value = []; await loadTasks(); loadStats();
+              } else { taskModal.err = d.error || 'Ошибка'; }
             } else {
-              const d = await postJSON('/api/admin/tasks/' + f.task_id + '/save', { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: f.flag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
-              if (d.ok) { store.toast('Задание «' + f.name + '» сохранено', 'ok'); taskModal.show = false; const idx = tasks.value.findIndex(t => t.id === f.task_id); if (idx !== -1) Object.assign(tasks.value[idx], { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, _pts: f.points, active: f.active, author: f.author, flag: f.flag, url: f.url, author_url: f.author_url }); } else { taskModal.err = d.error || 'Ошибка'; }
+              const d = await postJSON('/api/admin/tasks/' + f.task_id + '/save', { name: f.name, category: f.category, difficulty: f.difficulty, description: f.description, points: f.points, flag: fullFlag, url: f.url, active: f.active, hide_open_button: f.hide_open_button, author: f.author, author_url: f.author_url }).then(r => r.json());
+              if (d.ok) { store.toast('Задание «' + f.name + '» сохранено', 'ok'); taskModal.show = false; tasks.value = []; await loadTasks(); loadStats(); } else { taskModal.err = d.error || 'Ошибка'; }
             }
           } finally { taskModal.saving = false; }
+        }
+        async function uploadTaskFile(event) {
+          taskModal.uploadErr = '';
+          taskModal.uploadedFile = '';
+          const file = event.target.files[0];
+          if (!file) return;
+          const fd = new FormData();
+          fd.append('file', file);
+          const res = await fetch('/api/admin/tasks/' + taskModal.f.task_id + '/upload-file', {
+            method: 'POST', headers: { 'X-CSRFToken': store.csrf }, body: fd, credentials: 'same-origin'
+          }).then(r => r.json()).catch(() => null);
+          if (!res || !res.ok) {
+            taskModal.uploadErr = res?.error || 'Ошибка загрузки';
+          } else {
+            taskModal.uploadedFile = res.filename;
+            store.toast('Файл «' + res.filename + '» загружен', 'ok');
+            const tInList = tasks.value.find(x => x.id === taskModal.f.task_id);
+            if (tInList) tInList.file = res.path.replace(/^\/task\//, '');
+          }
+          event.target.value = '';
         }
         function confirmDeleteTask(t) { modal.title = 'Удалить задание'; modal.text = 'Удалить задание «' + t.name + '» (ID ' + t.id + ')? Все решения будут также удалены.'; modal.action = () => deleteTask(t); modal.show = true; }
         async function deleteTask(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/delete', {}).then(r => r.json()); if (d.ok) { tasks.value = tasks.value.filter(x => x.id !== t.id); store.toast('Задание «' + t.name + '» удалено', 'ok'); loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
@@ -2879,6 +3154,34 @@
         function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
         const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
         async function toggleStaff(u) { const d = await postJSON('/api/admin/users/' + u.id + '/toggle-staff', {}).then(r => r.json()); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка', 'err'); }
+        async function banUser(u, mode) {
+          const reason = window.prompt(mode === 'all_traces' ? 'Причина бана аккаунта, IP и сигнатур (общий IP может затронуть других участников):' : 'Причина бана аккаунта:', 'Нарушение правил');
+          if (reason === null) return;
+          const d = await postJSON('/api/admin/users/' + u.id + '/ban', { mode, reason }).then(r => r.json());
+          if (d.ok) { u.active_bans = d.ban_ids.length; store.toast(u.username + ': доступ заблокирован, сессий закрыто ' + d.sessions_revoked, 'ok'); }
+          else store.toast(d.error || 'Ошибка', 'err');
+        }
+        async function unbanUser(u) {
+          const data = await fetch('/api/admin/security/bans').then(r => r.json());
+          if (!data.ok) { store.toast(data.error || 'Ошибка', 'err'); return; }
+          const active = data.bans.filter(b => b.active && b.username === u.username);
+          for (const ban of active) await postJSON('/api/admin/security/bans/' + ban.id + '/revoke', {});
+          u.active_bans = 0;
+          store.toast(u.username + ': блокировки сняты', 'ok');
+        }
+        function resetUserPassword(u) {
+          Object.assign(passwordModal, { show: true, user: u, password: '', saving: false, error: '' });
+        }
+        async function confirmResetUserPassword() {
+          if (!passwordModal.user || !passwordModal.password) return;
+          passwordModal.saving = true; passwordModal.error = '';
+          const d = await postJSON('/api/admin/users/' + passwordModal.user.id + '/reset-password', { new_password: passwordModal.password }).then(r => r.json());
+          passwordModal.saving = false;
+          if (d.ok) {
+            store.toast(passwordModal.user.username + ': пароль изменён, сессий закрыто ' + d.sessions_revoked, 'ok');
+            passwordModal.password = ''; passwordModal.show = false;
+          } else passwordModal.error = d.error || 'Ошибка';
+        }
         function onDrop(e) { const f = e.dataTransfer.files[0]; if (f) readFileAsText(f); }
         function onFileSelect(e) { const f = e.target.files[0]; if (f) readFileAsText(f); }
         function readFileAsText(file) { const r = new FileReader(); r.onload = ev => { importText.value = ev.target.result; }; r.readAsText(file); }
@@ -2887,10 +3190,58 @@
           try { let parsed; try { parsed = JSON.parse(importText.value); } catch { store.toast('Неверный JSON', 'err'); return; } const d = await postJSON('/api/admin/sync-tasks', parsed).then(r => r.json()); importResult.value = d; if (d.ok) { store.toast('Создано: ' + d.created + ', обновлено: ' + d.updated, 'ok'); tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
           finally { importing.value = false; }
         }
-        async function syncFromFile() { const d = await fetch('/api/admin/sync-tasks', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, credentials: 'same-origin' }).then(r => r.json()); if (d.ok) { store.toast('Синхронизировано: +' + d.created + ' / ~' + d.updated, 'ok'); tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
+        async function syncFromFile() {
+          importing.value = true;
+          importResult.value = null;
+          try {
+            const d = await fetch('/api/admin/sync-tasks', { method: 'POST', headers: { 'X-CSRFToken': store.csrf }, credentials: 'same-origin' }).then(r => r.json());
+            importResult.value = d;
+            if (d.ok) {
+              store.toast('Жесткая синхронизация: +' + d.created + ' / ~' + d.updated, 'ok');
+              tasks.value = [];
+              await Promise.all([loadStats(), loadTasks()]);
+            } else {
+              store.toast(d.error || 'Ошибка', 'err');
+            }
+          } finally {
+            importing.value = false;
+          }
+        }
+        function confirmHardSyncFromFile() {
+          modal.title = 'Жесткая синхронизация';
+          modal.text = 'Перечитать task(s).json и перезаписать задания в БД из файла?';
+          modal.action = syncFromFile;
+          modal.show = true;
+        }
         function confirmResetAll() { modal.title = '☢ Ядерный сброс'; modal.text = 'Удалить ВСЕ решения у всех пользователей? Это действие необратимо.'; modal.action = resetAllSolves; modal.show = true; }
         async function resetAllSolves() { const d = await postJSON('/api/admin/reset-solves', {}).then(r => r.json()); if (d.ok) { store.toast('Сброшено ' + d.deleted + ' решений', 'ok'); users.value = []; tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
         function goSettings() { page.value = 'settings'; loadAnnouncement(); }
+        async function loadDynamicPricing() {
+          const d = await fetch('/api/admin/dynamic-pricing').then(r => r.json()).catch(() => null);
+          if (d?.ok) { Object.assign(dpConfig, { enabled: d.enabled, decay_per_solve: d.decay_per_solve, min_percent: d.min_percent }); dpPreview.value = d.tasks_preview || []; }
+        }
+        async function saveDynamicPricing() {
+          dpSaving.value = true;
+          const d = await postJSON('/api/admin/dynamic-pricing', { enabled: dpConfig.enabled, decay_per_solve: Number(dpConfig.decay_per_solve), min_percent: Number(dpConfig.min_percent) }).then(r => r.json()).catch(() => null);
+          dpSaving.value = false;
+          if (d?.ok) { store.toast('Настройки сохранены', 'ok'); loadDynamicPricing(); }
+          else store.toast(d?.error || 'Ошибка', 'err');
+        }
+        function goDP() { page.value = 'dynamic_pricing'; loadDynamicPricing(); }
+        async function loadAuditLog() {
+          auditLoading.value = true;
+          try {
+            const params = new URLSearchParams({ page: auditPage.value, limit: 50 });
+            if (auditFilter.value) params.set('action', auditFilter.value);
+            const d = await fetch('/api/admin/audit-log?' + params).then(r => r.json()).catch(() => null);
+            if (d?.ok) {
+              auditLog.value = d.entries;
+              auditTotal.value = d.total;
+              if (d.action_choices) auditChoices.value = d.action_choices;
+            }
+          } finally { auditLoading.value = false; }
+        }
+        function goJournal() { page.value = 'journal'; auditPage.value = 1; loadAuditLog(); }
 
         onMounted(async () => {
           if (!store.user) { const d = await fetch('/api/me').then(r => r.json()).catch(() => ({ user: null })); store.user = d.user; }
@@ -2898,9 +3249,10 @@
           if (!store.user.is_staff) { router.push('/'); return; }
           if (!store.csrf) await store.refreshCsrf();
           await Promise.all([loadMe(), loadStats(), loadAnnouncement()]);
+          postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, onDrop, onFileSelect, doImport, syncFromFile, confirmResetAll, saveAnnouncement };
+        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, banUser, unbanUser, resetUserPassword, confirmResetUserPassword, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -2919,9 +3271,11 @@
         <div class="adm-nav-section">Система</div>
         <div class="adm-nav-item" :class="{active:page==='import'}" @click="page='import';importText=''"><span class="icon">↑</span> Импорт JSON</div>
         <div class="adm-nav-item" :class="{active:page==='settings'}" @click="goSettings"><span class="icon">⚙</span> Настройки</div>
+        <div class="adm-nav-item" :class="{active:page==='dynamic_pricing'}" @click="goDP"><span class="icon">⚡</span> Дин. цены</div>
+        <div class="adm-nav-item" :class="{active:page==='journal'}" @click="goJournal"><span class="icon">📋</span> Журнал</div>
       </div>
       <div class="adm-footer">
-        <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">← На сайт</a>
+        <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">На сайт</a>
       </div>
     </aside>
     <div class="adm-main">
@@ -2945,7 +3299,7 @@
               <div class="adm-quick-actions">
                 <div class="adm-qa-card" @click="goTasks"><div class="adm-qa-icon">⚑</div><div class="adm-qa-title">Задания</div><div class="adm-qa-desc">Управление заданиями</div></div>
                 <div class="adm-qa-card" @click="goUsers"><div class="adm-qa-icon">⊙</div><div class="adm-qa-title">Пользователи</div><div class="adm-qa-desc">Список и права</div></div>
-                <div class="adm-qa-card" @click="syncFromFile"><div class="adm-qa-icon">↻</div><div class="adm-qa-title">Синх. tasks.json</div><div class="adm-qa-desc">Обновить из файла</div></div>
+                <div class="adm-qa-card" @click="confirmHardSyncFromFile"><div class="adm-qa-icon">↻</div><div class="adm-qa-title">Жесткий sync JSON</div><div class="adm-qa-desc">Перезаписать из task(s).json</div></div>
               </div>
             </div>
           </div>
@@ -2970,7 +3324,7 @@
               <tbody>
                 <tr v-for="t in filteredTasks" :key="t.id">
                   <td style="font-family:ui-monospace,monospace;font-size:12px;color:rgba(229,231,235,.45);">{{ t.id }}</td>
-                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div></td>
+                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div><div v-if="t.file" style="font-size:11px;color:#4ade80;margin-top:2px;">📎 {{ t.file.split('/').pop() }}</div></td>
                   <td><span class="adm-badge-gray">{{ t.category }}</span></td>
                   <td><input class="adm-input adm-input-sm" type="number" min="0" v-model.number="t._pts" @change="savePts(t)"></td>
                   <td><span class="adm-badge-indigo">{{ t.solve_count }}</span></td>
@@ -2999,12 +3353,20 @@
               <thead><tr><th>Пользователь</th><th>Очков</th><th>Решено</th><th>Дата</th><th>Роль</th><th>Действия</th></tr></thead>
               <tbody>
                 <tr v-for="u in filteredUsers" :key="u.id">
-                  <td><div style="display:flex;align-items:center;gap:8px;"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:700;">{{ u.display_name || u.username }}</div><div style="font-size:11px;color:rgba(229,231,235,.4);">@{{ u.username }}</div></div></div></td>
+                  <td><div style="display:flex;align-items:center;gap:8px;"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:700;">{{ u.display_name || u.username }} <span v-if="u.active_bans" class="adm-badge-red">BAN {{ u.active_bans }}</span></div><div style="font-size:11px;color:rgba(229,231,235,.4);">@{{ u.username }}<span v-if="u.last_ips?.length"> · {{ u.last_ips.join(', ') }}</span></div></div></div></td>
                   <td><span class="adm-badge-indigo">{{ u.score }}</span></td>
                   <td style="color:rgba(229,231,235,.7);">{{ u.solved_count }}</td>
                   <td style="font-family:ui-monospace,monospace;color:rgba(229,231,235,.4);font-size:11px;">{{ u.date_joined }}</td>
                   <td><span v-if="u.is_superuser" class="adm-badge-red">superuser</span><span v-else-if="u.is_staff" class="adm-badge-indigo">admin</span><span v-else class="adm-badge-gray">user</span></td>
-                  <td><button v-if="!u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button><span v-else style="font-size:11px;color:rgba(229,231,235,.3);">—</span></td>
+                  <td style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button v-if="store.user?.is_superuser && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button>
+                    <template v-if="store.user?.is_superuser && u.id !== store.user.id">
+                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="banUser(u, 'account')">Бан</button>
+                      <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="banUser(u, 'all_traces')" title="Аккаунт + известные IP и клиентские сигнатуры">Бан по следам</button>
+                      <button v-else class="adm-btn-sm success" @click="unbanUser(u)">Разбанить</button>
+                      <button class="adm-btn-sm primary" @click="resetUserPassword(u)">Сменить пароль</button>
+                    </template>
+                  </td>
                 </tr>
                 <tr v-if="filteredUsers.length === 0"><td colspan="6" style="text-align:center;color:rgba(229,231,235,.35);padding:28px;">Нет пользователей</td></tr>
               </tbody>
@@ -3028,7 +3390,7 @@
               <textarea class="adm-input" style="min-height:220px;font-family:ui-monospace,monospace;font-size:12px;" placeholder='[{"task_id":1,"name":"...","flag":"..."}]' v-model="importText"></textarea>
               <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
                 <button class="adm-btn primary" :disabled="!importText.trim() || importing" @click="doImport"><span v-if="importing" class="adm-spinner"></span><span v-else>↑ Загрузить</span></button>
-                <button class="adm-btn gray" @click="syncFromFile">↻ Синх. из tasks.json</button>
+                <button class="adm-btn gray" @click="confirmHardSyncFromFile">↻ Жестко синх. из task(s).json</button>
                 <span v-if="importResult" style="font-size:12px;font-weight:600;" :style="{color: importResult.ok ? '#4ade80' : '#f87171'}">{{ importResult.ok ? 'Создано: ' + importResult.created + ', обновлено: ' + importResult.updated : importResult.error }}</span>
               </div>
             </div>
@@ -3038,6 +3400,16 @@
         <!-- SETTINGS -->
         <div v-else-if="page === 'settings'">
           <div class="adm-section-row"><div class="adm-section-title">Настройки</div></div>
+          <div class="adm-card" style="margin-bottom:20px;">
+            <div class="adm-card-h"><div class="adm-card-title">↻ Синхронизация заданий</div></div>
+            <div class="adm-card-b">
+              <div style="font-size:12px;color:rgba(229,231,235,.55);margin-bottom:12px;">Принудительно перечитывает task(s).json и обновляет задания в базе данных.</div>
+              <button class="adm-btn gray" @click="confirmHardSyncFromFile" :disabled="importing">
+                <span v-if="importing" class="adm-spinner"></span>
+                <span v-else>↻ Жестко синхронизировать из task(s).json</span>
+              </button>
+            </div>
+          </div>
           <div class="adm-card" style="margin-bottom:20px;">
             <div class="adm-card-h"><div class="adm-card-title">📢 Баннер объявления</div></div>
             <div class="adm-card-b">
@@ -3060,6 +3432,226 @@
           </div>
         </div>
 
+        <!-- DYNAMIC PRICING -->
+        <div v-else-if="page === 'dynamic_pricing'">
+          <div class="adm-section-row"><div class="adm-section-title">⚡ Динамические цены</div></div>
+          <div class="adm-card" style="margin-bottom:20px;">
+            <div class="adm-card-h"><div class="adm-card-title">Настройки</div></div>
+            <div class="adm-card-b">
+              <div style="font-size:12px;color:rgba(229,231,235,.55);margin-bottom:16px;">Чем больше команд решило задание — тем меньше оно стоит. Очки фиксируются в момент сдачи флага.</div>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                  <div class="adm-toggle" style="flex-shrink:0;"><input type="checkbox" v-model="dpConfig.enabled"><span class="adm-track"></span></div>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--textOnDark);">Включить динамические цены</div>
+                    <div style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">Каждое новое решение снижает стоимость задания</div>
+                  </div>
+                </label>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(229,231,235,.55);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Снижение за каждое решение (очки)</div>
+                  <input class="adm-input" type="number" min="0" max="10000" v-model.number="dpConfig.decay_per_solve" style="width:140px;">
+                  <div style="font-size:11px;color:rgba(229,231,235,.4);margin-top:4px;">Цена падает на это число очков за каждый новый solve</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(229,231,235,.55);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Минимальная цена (% от базовой)</div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input class="adm-input" type="number" min="1" max="100" v-model.number="dpConfig.min_percent" style="width:140px;">
+                    <span style="font-size:12px;color:rgba(229,231,235,.45);">Цена не упадёт ниже {{ dpConfig.min_percent }}% от базовой</span>
+                  </div>
+                </div>
+                <div>
+                  <button class="adm-btn primary" @click="saveDynamicPricing" :disabled="dpSaving">
+                    <span v-if="dpSaving" class="adm-spinner"></span><span v-else>💾 Сохранить</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="adm-card" v-if="dpPreview.length">
+            <div class="adm-card-h"><div class="adm-card-title">Текущие цены активных заданий</div></div>
+            <div class="adm-card-b" style="padding:0;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
+                    <th style="padding:10px 14px;text-align:left;font-weight:700;color:rgba(229,231,235,.55);">Задание</th>
+                    <th style="padding:10px 14px;text-align:center;font-weight:700;color:rgba(229,231,235,.55);">База</th>
+                    <th style="padding:10px 14px;text-align:center;font-weight:700;color:rgba(229,231,235,.55);">Решений</th>
+                    <th style="padding:10px 14px;text-align:center;font-weight:700;color:rgba(229,231,235,.55);">Сейчас</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in dpPreview" :key="t.name" style="border-bottom:1px solid rgba(255,255,255,.05);">
+                    <td style="padding:9px 14px;color:var(--textOnDark);font-weight:600;">{{ t.name }}</td>
+                    <td style="padding:9px 14px;text-align:center;color:rgba(229,231,235,.55);">{{ t.base }}</td>
+                    <td style="padding:9px 14px;text-align:center;color:rgba(229,231,235,.55);">{{ t.solves }}</td>
+                    <td style="padding:9px 14px;text-align:center;" :style="t.current < t.base ? 'color:#f87171;font-weight:800;' : 'color:#4ade80;font-weight:800;'">{{ t.current }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOURNAL -->
+        <div v-else-if="page === 'journal'">
+          <div class="adm-section-row">
+            <div class="adm-section-title">📋 Журнал действий</div>
+            <select class="adm-input" v-model="auditFilter" @change="auditPage=1;loadAuditLog()" style="width:220px;margin-left:auto;">
+              <option v-for="c in auditChoices" :key="c.value" :value="c.value">{{ c.label }}</option>
+            </select>
+            <button class="adm-btn gray" @click="loadAuditLog" :disabled="auditLoading">↻</button>
+          </div>
+          <div class="adm-card" v-if="auditLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
+          <div class="adm-card" v-else>
+            <div v-if="!auditLog.length" style="padding:28px;text-align:center;font-size:13px;color:rgba(229,231,235,.35);">Пусто</div>
+            <div v-else style="overflow-x:auto;">
+              <table class="adm-table" style="font-size:12px;">
+                <thead>
+                  <tr>
+                    <th style="width:148px;">Время</th>
+                    <th style="width:120px;">Пользователь</th>
+                    <th style="width:160px;">Действие</th>
+                    <th>Цель</th>
+                    <th>Детали</th>
+                    <th style="width:110px;">IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="e in auditLog" :key="e.id" @click="auditDetail=e" style="cursor:pointer;transition:background .12s;" :style="{background: auditDetail?.id===e.id ? 'rgba(96,165,250,.07)':''}">
+                    <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.5);white-space:nowrap;">{{ e.timestamp }}</td>
+                    <td>
+                      <span v-if="e.actor" style="font-weight:700;color:var(--textOnDark);">{{ e.actor }}</span>
+                      <span v-else style="color:rgba(229,231,235,.3);">—</span>
+                    </td>
+                    <td>
+                      <span class="adm-badge-gray" :style="
+                        e.action==='submit_correct'  ? 'background:rgba(74,222,128,.12);color:#4ade80;border-color:rgba(74,222,128,.25)' :
+                        e.action==='submit_wrong'    ? 'background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)' :
+                        e.action==='register'        ? 'background:rgba(96,165,250,.12);color:#60a5fa;border-color:rgba(96,165,250,.25)' :
+                        e.action==='login'           ? 'background:rgba(96,165,250,.08);color:#93c5fd;border-color:rgba(96,165,250,.2)' :
+                        e.action==='grant_staff'     ? 'background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.25)' :
+                        e.action==='revoke_staff'    ? 'background:rgba(251,146,60,.12);color:#fb923c;border-color:rgba(251,146,60,.25)' :
+                        e.action==='task_delete'||e.action==='reset_all_solves' ? 'background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)' :
+                        e.action==='task_create'     ? 'background:rgba(74,222,128,.08);color:#86efac;border-color:rgba(74,222,128,.2)' :
+                        e.action==='admin_login'      ? 'background:rgba(192,132,252,.12);color:#c084fc;border-color:rgba(192,132,252,.25)' :
+                        e.action==='profile_update'   ? 'background:rgba(34,211,238,.08);color:#67e8f9;border-color:rgba(34,211,238,.2)' :
+                        e.action==='set_announcement' ? 'background:rgba(251,191,36,.08);color:#fde68a;border-color:rgba(251,191,36,.2)' :
+                        e.action==='dynamic_pricing_change' ? 'background:rgba(52,211,153,.08);color:#6ee7b7;border-color:rgba(52,211,153,.2)' :
+                        ''">{{ e.action_label }}</span>
+                    </td>
+                    <td style="color:rgba(229,231,235,.7);">
+                      <span v-if="e.target_task">📌 {{ e.target_task }}</span>
+                      <span v-else-if="e.target_user">👤 {{ e.target_user }}</span>
+                      <span v-else style="color:rgba(229,231,235,.25);">—</span>
+                    </td>
+                    <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.5);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      <span v-if="Object.keys(e.details||{}).length" style="color:rgba(96,165,250,.6);font-size:11px;">&#x1F4CE; подробнее…</span>
+                      <span v-else style="color:rgba(229,231,235,.2);">—</span>
+                    </td>
+                    <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.4);">{{ e.ip || '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div v-if="auditTotal > 50" style="padding:12px 16px;display:flex;align-items:center;gap:10px;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:rgba(229,231,235,.5);">
+              <span>{{ auditTotal }} записей</span>
+              <div style="margin-left:auto;display:flex;gap:6px;">
+                <button class="adm-btn-sm gray" :disabled="auditPage<=1" @click="auditPage--;loadAuditLog()">‹</button>
+                <span>{{ auditPage }} / {{ Math.ceil(auditTotal/50) }}</span>
+                <button class="adm-btn-sm gray" :disabled="auditPage>=Math.ceil(auditTotal/50)" @click="auditPage++;loadAuditLog()">›</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Audit Detail Modal -->
+    <div class="adm-modal-overlay" v-if="auditDetail" @click.self="auditDetail=null" style="z-index:1020;">
+      <div class="adm-modal-box" style="max-width:680px;width:96%;max-height:82vh;overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <h3 style="margin:0;font-size:15px;font-weight:800;color:var(--textOnDark);">📋 Детали события</h3>
+          <button class="adm-btn-sm gray" @click="auditDetail=null" style="font-size:16px;line-height:1;">✕</button>
+        </div>
+
+        <!-- Meta grid -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-bottom:18px;padding:14px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.07);">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Время</div>
+            <div style="font-family:ui-monospace,monospace;font-size:12px;color:var(--textOnDark);">{{ auditDetail.timestamp }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Действие</div>
+            <span class="adm-badge-gray" :style="
+              auditDetail.action==='submit_correct' ? 'background:rgba(74,222,128,.12);color:#4ade80;border-color:rgba(74,222,128,.25)' :
+              auditDetail.action==='submit_wrong'   ? 'background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)' :
+              auditDetail.action==='register'||auditDetail.action==='login' ? 'background:rgba(96,165,250,.12);color:#60a5fa;border-color:rgba(96,165,250,.25)' :
+              auditDetail.action==='grant_staff'    ? 'background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.25)' :
+              auditDetail.action==='revoke_staff'   ? 'background:rgba(251,146,60,.12);color:#fb923c;border-color:rgba(251,146,60,.25)' :
+              auditDetail.action==='task_delete'||auditDetail.action==='reset_all_solves' ? 'background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.25)' :
+              auditDetail.action==='task_create'    ? 'background:rgba(74,222,128,.08);color:#86efac;border-color:rgba(74,222,128,.2)' :
+              auditDetail.action==='admin_login'     ? 'background:rgba(192,132,252,.12);color:#c084fc;border-color:rgba(192,132,252,.25)' :
+              auditDetail.action==='profile_update'  ? 'background:rgba(34,211,238,.08);color:#67e8f9;border-color:rgba(34,211,238,.2)' :
+              auditDetail.action==='set_announcement' ? 'background:rgba(251,191,36,.08);color:#fde68a;border-color:rgba(251,191,36,.2)' :
+              auditDetail.action==='dynamic_pricing_change' ? 'background:rgba(52,211,153,.08);color:#6ee7b7;border-color:rgba(52,211,153,.2)' :
+              ''">{{ auditDetail.action_label }}</span>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Пользователь</div>
+            <div style="font-size:13px;font-weight:700;color:var(--textOnDark);">{{ auditDetail.actor || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">IP-адрес</div>
+            <div style="font-family:ui-monospace,monospace;font-size:12px;color:rgba(229,231,235,.6);">{{ auditDetail.ip || '—' }}</div>
+          </div>
+          <div v-if="auditDetail.target_task">
+            <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Задание</div>
+            <div style="font-size:13px;color:var(--textOnDark);">📌 {{ auditDetail.target_task }}</div>
+          </div>
+          <div v-if="auditDetail.target_user">
+            <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Целевой пользователь</div>
+            <div style="font-size:13px;color:var(--textOnDark);">👤 {{ auditDetail.target_user }}</div>
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div v-if="auditDetail.details && Object.keys(auditDetail.details).length">
+          <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Подробности</div>
+
+          <!-- task_edit: before/after changes table -->
+          <div v-if="'changes' in (auditDetail.details||{})">
+            <div v-if="Object.keys(auditDetail.details.changes||{}).length" style="overflow-x:auto;border:1px solid rgba(255,255,255,.07);border-radius:10px;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
+                    <th style="padding:9px 14px;text-align:left;color:rgba(229,231,235,.45);font-weight:700;">Поле</th>
+                    <th style="padding:9px 14px;text-align:left;color:#f87171;font-weight:700;">Было</th>
+                    <th style="padding:9px 14px;text-align:left;color:#4ade80;font-weight:700;">Стало</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(ch, field) in auditDetail.details.changes" :key="field" style="border-bottom:1px solid rgba(255,255,255,.04);">
+                    <td style="padding:9px 14px;font-weight:700;color:rgba(229,231,235,.75);">{{ FIELD_LABELS[field] || field }}</td>
+                    <td style="padding:9px 14px;font-family:ui-monospace,monospace;color:#f87171;max-width:220px;word-break:break-all;">{{ ch.from === true ? 'да' : ch.from === false ? 'нет' : String(ch.from) }}</td>
+                    <td style="padding:9px 14px;font-family:ui-monospace,monospace;color:#4ade80;max-width:220px;word-break:break-all;">{{ ch.to === true ? 'да' : ch.to === false ? 'нет' : String(ch.to) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if="!Object.keys(auditDetail.details.changes||{}).length" style="padding:12px 0;font-size:12px;color:rgba(229,231,235,.4);font-style:italic;">Действие выполнено, реальных изменений не зафиксировано</div>
+          </div>
+
+          <!-- other actions: key-value list -->
+          <div v-else style="border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden;">
+            <div v-for="(val, key) in auditDetail.details" :key="key" style="display:flex;align-items:baseline;gap:14px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04);">
+              <span style="min-width:160px;flex-shrink:0;font-size:11px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.04em;">{{ FIELD_LABELS[key] || key }}</span>
+              <span style="font-size:12px;font-family:ui-monospace,monospace;color:var(--textOnDark);word-break:break-all;">{{ val === null ? '—' : val === true ? 'да' : val === false ? 'нет' : String(val) }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else style="font-size:12px;color:rgba(229,231,235,.35);font-style:italic;">Дополнительных данных нет</div>
       </div>
     </div>
 
@@ -3075,6 +3667,19 @@
       </div>
     </div>
 
+    <!-- Superuser password reset modal -->
+    <div class="adm-modal-overlay" v-if="passwordModal.show" @click.self="passwordModal.show=false" style="z-index:1020;">
+      <div class="adm-modal-box">
+        <h3>Сменить пароль: {{ passwordModal.user?.username }}</h3>
+        <input class="adm-input" type="password" autocomplete="new-password" minlength="10" maxlength="128" v-model="passwordModal.password" placeholder="Новый пароль (минимум 10 символов)" @keyup.enter="confirmResetUserPassword">
+        <div v-if="passwordModal.error" style="margin-top:10px;color:#f87171;font-size:12px;">{{ passwordModal.error }}</div>
+        <div class="adm-modal-actions">
+          <button class="adm-btn gray" @click="passwordModal.password=''; passwordModal.show=false">Отмена</button>
+          <button class="adm-btn primary" :disabled="passwordModal.saving || passwordModal.password.length < 10" @click="confirmResetUserPassword">Сменить и закрыть сессии</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Task Create/Edit Modal -->
     <div class="adm-modal-overlay" v-if="taskModal.show" @click.self="taskModal.show=false" style="z-index:1010;">
       <div class="adm-modal-box wide">
@@ -3086,11 +3691,22 @@
           <div style="grid-column:1/-1;"><div class="adm-field-lbl">Название *</div><input class="adm-input" v-model="taskModal.f.name" maxlength="128" placeholder="Название задания"></div>
           <div><div class="adm-field-lbl">Категория *</div><select class="adm-input" v-model="taskModal.f.category"><option v-for="c in categories" :key="c" :value="c">{{ c }}</option></select></div>
           <div><div class="adm-field-lbl">Сложность</div><select class="adm-input" v-model="taskModal.f.difficulty"><option v-for="d in difficulties" :key="d" :value="d">{{ d }}</option></select></div>
-          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Флаг *</div><input class="adm-input" v-model="taskModal.f.flag" maxlength="256" placeholder="CTF{...}" style="font-family:ui-monospace,monospace;"></div>
+          <div style="grid-column:1/-1;"><div class="adm-field-lbl">Флаг *</div><div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,.13);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.07);transition:.14s ease;" :style="taskModal.f.flagInner ? 'border-color:rgba(99,102,241,.35)' : ''"><span style="padding:8px 10px;font-size:13px;font-weight:700;color:rgba(165,180,252,.7);font-family:ui-monospace,monospace;white-space:nowrap;flex-shrink:0;border-right:1px solid rgba(255,255,255,.08);">oskolctf{</span><input style="flex:1;min-width:0;background:transparent;border:none;outline:none;padding:8px 8px;font-size:13px;font-family:ui-monospace,monospace;font-weight:500;color:var(--textOnDark);" v-model="taskModal.f.flagInner" maxlength="240" placeholder="введите флаг"><span style="padding:8px 10px;font-size:13px;font-weight:700;color:rgba(165,180,252,.7);font-family:ui-monospace,monospace;flex-shrink:0;border-left:1px solid rgba(255,255,255,.08);">}</span></div></div>
           <div style="grid-column:1/-1;"><div class="adm-field-lbl">Описание</div><textarea class="adm-input" v-model="taskModal.f.description" style="min-height:80px;" placeholder="Описание задания…"></textarea></div>
           <div style="grid-column:1/-1;"><div class="adm-field-lbl">URL страницы (необязательно)</div><input class="adm-input" v-model="taskModal.f.url" maxlength="128" placeholder="/task0 или пусто"></div>
           <div><div class="adm-field-lbl">Автор</div><input class="adm-input" v-model="taskModal.f.author" maxlength="64" placeholder="Никнейм автора"></div>
           <div><div class="adm-field-lbl">Ссылка на автора</div><input class="adm-input" v-model="taskModal.f.author_url" maxlength="200" placeholder="https://..."></div>
+          <div style="grid-column:1/-1;">
+            <div class="adm-field-lbl">Файл задания</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <label style="display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);cursor:pointer;font-size:13px;font-weight:600;color:var(--textOnDark);">
+                📎 Выбрать файл
+                <input type="file" style="display:none;" @change="taskModal.mode==='edit' ? uploadTaskFile($event) : (taskModal.pendingFile=$event.target.files[0], taskModal.uploadedFile=$event.target.files[0]?.name||'', $event.target.value='')">
+              </label>
+              <span v-if="taskModal.uploadedFile" style="font-size:12px;color:#4ade80;font-weight:700;">✓ {{ taskModal.uploadedFile }}</span>
+              <span v-if="taskModal.uploadErr" style="font-size:12px;color:#f87171;font-weight:700;">{{ taskModal.uploadErr }}</span>
+            </div>
+          </div>
           <div style="display:flex;gap:20px;align-items:center;grid-column:1/-1;">
             <label class="adm-toggle"><input type="checkbox" v-model="taskModal.f.active"><span class="adm-track"></span><span style="font-size:13px;font-weight:600;margin-left:6px;">Активно</span></label>
             <label class="adm-toggle"><input type="checkbox" v-model="taskModal.f.hide_open_button"><span class="adm-track"></span><span style="font-size:13px;font-weight:600;margin-left:6px;">Скрыть кнопку открыть</span></label>

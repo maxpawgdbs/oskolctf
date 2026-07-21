@@ -3,20 +3,22 @@ services:
     build: .
     restart: unless-stopped
     environment:
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in the environment}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-oskolctf.ddns.net}
       - DEBUG=${DEBUG:-0}
+      - TRUST_PROXY_HEADERS=1
+      - SECURE_COOKIES=1
       # Пароль для суперюзеров nekoty/shellovx/gdbs (смени при деплое!)
-      - SUPERUSER_PASSWORD=${SUPERUSER_PASSWORD:-ChangeMe123!}
+      - SUPERUSER_PASSWORD=${SUPERUSER_PASSWORD:?Set SUPERUSER_PASSWORD in the environment}
     volumes:
       # База данных хранится снаружи контейнера — не теряется при пересборке
       - ./data:/data
       # Медиафайлы (аватарки) — хранятся между перезапусками
       - ./media:/app/media
-      # tasks.json можно менять без пересборки образа
-      - ./tasks.json:/app/tasks.json:ro
+      # tasks.json — rw чтобы изменения через веб сохранялись в файл
+      - ./tasks.json:/app/tasks.json
       # Файлы задач
-      - ./task:/app/task:ro
+      - ./task:/app/task
     expose:
       - "8005"
 

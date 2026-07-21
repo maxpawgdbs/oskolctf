@@ -1,4 +1,5 @@
 import hashlib
+import ipaddress
 import json
 import os
 
@@ -42,12 +43,88 @@ class User(AbstractUser):
     def get_score(self):
         from django.db.models import Sum
         total = self.solves.filter(task__active=True).aggregate(
-            s=Sum("task__points")
+            s=Sum("points_awarded")
         )["s"]
         return total or 0
 
     def get_solve_count(self):
         return self.solves.filter(task__active=True).count()
+
+
+class SecurityBan(models.Model):
+    """Server-side ban rule. Client-provided signatures are only a secondary signal."""
+
+    ACCOUNT = "account"
+    IP = "ip"
+    SIGNATURE = "signature"
+    USER_AGENT = "user_agent"
+    KIND_CHOICES = [
+        (ACCOUNT, "Account"),
+        (IP, "IP / CIDR"),
+        (SIGNATURE, "Client signature"),
+        (USER_AGENT, "User-Agent hash"),
+    ]
+
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, db_index=True)
+    user = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.CASCADE, related_name="security_bans"
+    )
+    value = models.CharField(max_length=128, blank=True, db_index=True)
+    reason = models.CharField(max_length=300, blank=True)
+    active = models.BooleanField(default=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_security_bans"
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["kind", "user", "value"],
+                condition=models.Q(active=True),
+                name="unique_active_security_ban",
+            )
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.kind == self.ACCOUNT and not self.user_id:
+            raise ValidationError({"user": "Account bans require a user."})
+        if self.kind != self.ACCOUNT and not self.value:
+            raise ValidationError({"value": "This ban type requires a value."})
+        if self.kind == self.IP and self.value:
+            try:
+                self.value = str(ipaddress.ip_network(self.value, strict=False))
+            except ValueError as exc:
+                raise ValidationError({"value": "Enter a valid IP address or CIDR."}) from exc
+
+    @property
+    def is_effective(self):
+        return self.active and (self.expires_at is None or self.expires_at > timezone.now())
+
+
+class ClientTrace(models.Model):
+    """Minimal hashed signals observed for an authenticated account."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="client_traces")
+    ip = models.GenericIPAddressField(null=True, blank=True, db_index=True)
+    signature_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    user_agent_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    first_seen = models.DateTimeField(default=timezone.now)
+    last_seen = models.DateTimeField(default=timezone.now, db_index=True)
+    seen_count = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-last_seen"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "ip", "signature_hash", "user_agent_hash"],
+                name="unique_user_client_trace",
+            )
+        ]
 
 
 # ─── Задание ────────────────────────────────────────────────────────────────────
@@ -104,6 +181,19 @@ class Task(models.Model):
     def solve_count(self):
         return self.solves.count()
 
+    def get_current_points(self):
+        """Возвращает текущую стоимость с учётом динамического ценообразования."""
+        try:
+            cfg = DynamicPricingConfig.get_config()
+            if not cfg.enabled:
+                return self.points
+            solves = self.solve_count
+            min_pts = max(1, self.points * cfg.min_percent // 100)
+            decayed = self.points - cfg.decay_per_solve * solves
+            return max(min_pts, decayed)
+        except Exception:
+            return self.points
+
 
 # ─── Решение ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +203,7 @@ class Solve(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="solves")
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="solves")
     solved_at = models.DateTimeField(default=timezone.now, verbose_name="Время решения")
+    points_awarded = models.PositiveIntegerField(default=0, verbose_name="Очков получено")
 
     class Meta:
         unique_together = ("user", "task")
@@ -122,6 +213,117 @@ class Solve(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.task.name}"
+
+
+# ─── Динамическое ценообразование ───────────────────────────────────────────────
+
+class DynamicPricingConfig(models.Model):
+    """Синглтон-конфиг для динамического ценообразования заданий."""
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Включить динамические цены",
+        help_text="Если включено — стоимость задания уменьшается с каждым новым решением.",
+    )
+    decay_per_solve = models.PositiveIntegerField(
+        default=5,
+        verbose_name="Снижение за каждое решение (очки)",
+        help_text="На сколько очков снижается цена задания за каждое новое решение.",
+    )
+    min_percent = models.PositiveIntegerField(
+        default=20,
+        verbose_name="Минимальная цена (% от базовой)",
+        help_text="Минимальная цена задания в процентах от базовой стоимости (1–100). Например, 20 = не ниже 20% от базы.",
+    )
+
+    class Meta:
+        verbose_name = "Настройки динамических цен"
+        verbose_name_plural = "Настройки динамических цен"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # singleton
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_config(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+# ─── Журнал действий ────────────────────────────────────────────────────────────
+
+class AuditLog(models.Model):
+    """Запись в журнале административных и пользовательских действий."""
+
+    ACTION_CHOICES = [
+        ('register',         'Регистрация'),
+        ('login',            'Вход'),
+        ('logout',           'Выход'),
+        ('submit_correct',   'Флаг принят'),
+        ('submit_wrong',     'Неверный флаг'),
+        ('task_create',      'Создание задания'),
+        ('task_edit',        'Редактирование задания'),
+        ('task_delete',      'Удаление задания'),
+        ('grant_staff',      'Выдача прав admin'),
+        ('revoke_staff',     'Отзыв прав admin'),
+        ('reset_all_solves', 'Сброс всех решений'),
+        ('clear_task_solves','Сброс решений задания'),
+        ('profile_update',         'Смена профиля'),
+        ('set_announcement',       'Баннер объявления'),
+        ('dynamic_pricing_change', 'Динамические цены'),
+        ('admin_login',            'Вход в панель admin'),
+    ]
+
+    timestamp   = models.DateTimeField(default=timezone.now, verbose_name='Время')
+    actor       = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='audit_logs', verbose_name='Автор действия',
+    )
+    action      = models.CharField(max_length=64, choices=ACTION_CHOICES, verbose_name='Действие')
+    target_user = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='target_audit_logs', verbose_name='Целевой пользователь',
+    )
+    target_task = models.ForeignKey(
+        'Task', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='audit_logs', verbose_name='Целевое задание',
+    )
+    details     = models.JSONField(default=dict, blank=True, verbose_name='Детали')
+    ip          = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
+
+    class Meta:
+        verbose_name          = 'Запись журнала'
+        verbose_name_plural   = 'Журнал действий'
+        ordering              = ['-timestamp']
+
+    def __str__(self):
+        return f"[{self.timestamp:%Y-%m-%d %H:%M}] {self.actor} → {self.action}"
+
+
+def log_action(request_or_none, action: str, actor=None, target_user=None, target_task=None, details: dict = None):
+    """Создаёт запись в журнале. Никогда не роняет основной поток."""
+    ip = None
+    try:
+        if request_or_none is not None:
+            raw_ip = request_or_none.META.get('REMOTE_ADDR', '')
+            if getattr(settings, 'TRUST_PROXY_HEADERS', False):
+                raw_ip = request_or_none.META.get('HTTP_X_REAL_IP', '') or raw_ip
+            try:
+                ip = str(ipaddress.ip_address(raw_ip.strip()))
+            except ValueError:
+                ip = None
+            if actor is None and hasattr(request_or_none, 'user') and request_or_none.user.is_authenticated:
+                actor = request_or_none.user
+        AuditLog.objects.create(
+            actor=actor,
+            action=action,
+            target_user=target_user,
+            target_task=target_task,
+            details=details or {},
+            ip=ip,
+        )
+    except Exception:
+        pass
 
 
 # ─── Вспомогательные функции для tasks.json ────────────────────────────────────
@@ -151,6 +353,7 @@ def dump_tasks_to_json() -> None:
             "url": t.url,
             "active": t.active,
             "hide_open_button": t.hide_open_button,
+            "file": t.file,
             "author": t.author,
             "author_url": t.author_url,
         }
@@ -169,6 +372,7 @@ def sync_tasks_from_json(data: list | None = None) -> tuple[int, int]:
     created = updated = 0
     for item in data:
         tid = int(item["id"])
+        existing = Task.objects.filter(task_id=tid).first()
         defaults = {
             "name": item.get("name", ""),
             "category": item.get("category", "Разное"),
@@ -179,7 +383,8 @@ def sync_tasks_from_json(data: list | None = None) -> tuple[int, int]:
             "url": item.get("url", f"/task{tid}"),
             "active": bool(item.get("active", True)),
             "hide_open_button": bool(item.get("hide_open_button", False)),
-            "file": item.get("file", ""),
+            # Если в JSON нет ключа file (старый формат), не стираем уже загруженный файл.
+            "file": item["file"] if "file" in item else (existing.file if existing else ""),
             "author": item.get("author", ""),
             "author_url": item.get("author_url", ""),
         }

@@ -1,6 +1,18 @@
 #!/bin/sh
 set -e
 
+# Если tasks.json — директория (Docker создал её при отсутствии файла на хосте),
+# удаляем и создаём пустой массив
+if [ -d "/app/tasks.json" ]; then
+    echo "[!] /app/tasks.json — директория, исправляем..."
+    rm -rf /app/tasks.json
+    echo "[]" > /app/tasks.json
+fi
+# Если файла нет вообще — создаём
+if [ ! -f "/app/tasks.json" ]; then
+    echo "[]" > /app/tasks.json
+fi
+
 echo "[*] Применяем миграции..."
 python manage.py migrate --noinput
 
