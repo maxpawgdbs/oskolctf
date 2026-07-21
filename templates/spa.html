@@ -3153,6 +3153,7 @@
         const auditChoices = ref([]);
         const auditLoading = ref(false);
         const auditDetail = ref(null);
+        const canManageSecurity = ref(false);
 
         const FIELD_LABELS = {
           name: 'Название', category: 'Категория', difficulty: 'Сложность',
@@ -3265,7 +3266,17 @@
         async function deleteTask(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/delete', {}).then(r => r.json()); if (d.ok) { tasks.value = tasks.value.filter(x => x.id !== t.id); store.toast('Задание «' + t.name + '» удалено', 'ok'); loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
         function confirmClearSolves(t) { modal.title = 'Сбросить решения'; modal.text = 'Удалить все ' + t.solve_count + ' решений задания «' + t.name + '»?'; modal.action = () => clearTaskSolves(t); modal.show = true; }
         async function clearTaskSolves(t) { const d = await postJSON('/api/admin/tasks/' + t.id + '/clear-solves', {}).then(r => r.json()); if (d.ok) { t.solve_count = 0; store.toast('Решения «' + t.name + '» удалены', 'ok'); loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
-        async function loadUsers() { usersLoading.value = true; try { const d = await fetch('/api/admin/users').then(r => r.json()); if (d.ok) users.value = d.users; } finally { usersLoading.value = false; } }
+        async function loadUsers() {
+          usersLoading.value = true;
+          try {
+            const d = await fetch('/api/admin/users').then(r => r.json());
+            if (d.ok) {
+              users.value = d.users;
+              canManageSecurity.value = !!d.can_manage_security;
+              if (store.user) store.user.is_superuser = !!d.can_manage_security;
+            }
+          } finally { usersLoading.value = false; }
+        }
         function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
         const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
         async function toggleStaff(u) { const d = await postJSON('/api/admin/users/' + u.id + '/toggle-staff', {}).then(r => r.json()); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка', 'err'); }
@@ -3411,7 +3422,7 @@
           postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, actionResult, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, auditSummary, prettyValue, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
+        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, actionResult, canManageSecurity, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, auditSummary, prettyValue, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -3521,9 +3532,9 @@
             <div><div class="adm-section-title">Пользователи ({{ users.length }})</div><div class="adm-user-meta">Управление ролями, блокировками и паролями</div></div>
             <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon">🔍</span><input class="adm-input" placeholder="Поиск…" v-model="userSearch"></div>
           </div>
-          <div class="adm-security-note" :class="{'danger': !store.user?.is_superuser}">
-            <div><strong>{{ store.user?.is_superuser ? 'Режим суперпользователя' : 'Только просмотр безопасности' }}</strong><br>
-              {{ store.user?.is_superuser ? 'Обычный бан блокирует аккаунт. Бан по следам дополнительно блокирует замеченные IP и сигнатуры браузера.' : 'Вы вошли как admin/staff. Банить пользователей и менять чужие пароли может только superuser.' }}
+          <div class="adm-security-note" :class="{'danger': !canManageSecurity}">
+            <div><strong>{{ canManageSecurity ? 'Режим суперпользователя' : 'Только просмотр безопасности' }}</strong><br>
+              {{ canManageSecurity ? 'Обычный бан блокирует аккаунт. Бан по следам дополнительно блокирует замеченные IP и сигнатуры браузера.' : 'Вы вошли как admin/staff. Банить пользователей и менять чужие пароли может только superuser.' }}
             </div>
           </div>
           <div class="adm-card" v-if="usersLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
@@ -3546,14 +3557,14 @@
                     </div>
                   </td>
                   <td data-label="Действия"><div class="adm-user-actions">
-                    <button v-if="store.user?.is_superuser && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button>
-                    <template v-if="store.user?.is_superuser && u.id !== store.user.id">
+                    <button v-if="canManageSecurity && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button>
+                    <template v-if="canManageSecurity && u.id !== store.user.id">
                       <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="openBanModal(u, 'account')">Бан аккаунта</button>
                       <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="openBanModal(u, 'all_traces')" title="Аккаунт + известные IP и клиентские сигнатуры">Бан по следам</button>
                       <button v-else class="adm-btn-sm success" @click="unbanUser(u)">Разбанить</button>
                       <button class="adm-btn-sm primary" @click="resetUserPassword(u)">Сменить пароль</button>
                     </template>
-                    <span v-if="!store.user?.is_superuser" class="adm-user-meta">Недоступно без прав superuser</span>
+                    <span v-if="!canManageSecurity" class="adm-user-meta">Недоступно без прав superuser</span>
                   </div></td>
                 </tr>
                 <tr v-if="filteredUsers.length === 0"><td colspan="4" style="text-align:center;color:rgba(229,231,235,.55);padding:28px;">Пользователи не найдены</td></tr>

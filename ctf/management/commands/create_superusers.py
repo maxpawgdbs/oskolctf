@@ -24,7 +24,8 @@ class Command(BaseCommand):
             else:
                 raise CommandError("SUPERUSER_PASSWORD must be set when DEBUG=0")
         for username in SUPERUSER_NAMES:
-            if not User.objects.filter(username=username).exists():
+            user = User.objects.filter(username=username).first()
+            if user is None:
                 User.objects.create_superuser(
                     username=username,
                     password=password,
@@ -33,4 +34,20 @@ class Command(BaseCommand):
                     f"Суперпользователь '{username}' создан"
                 ))
             else:
-                self.stdout.write(f"'{username}' уже существует — пропуск")
+                changed = []
+                if not user.is_staff:
+                    user.is_staff = True
+                    changed.append("is_staff")
+                if not user.is_superuser:
+                    user.is_superuser = True
+                    changed.append("is_superuser")
+                if not user.is_active:
+                    user.is_active = True
+                    changed.append("is_active")
+                if changed:
+                    user.save(update_fields=changed)
+                    self.stdout.write(self.style.SUCCESS(
+                        f"'{username}' восстановлен как суперпользователь"
+                    ))
+                else:
+                    self.stdout.write(f"'{username}' уже суперпользователь")
