@@ -80,6 +80,8 @@ def find_matching_ban(request, user=None):
         match = bans.filter(kind=SecurityBan.ACCOUNT, user=user).first()
         if match:
             return match
+        if user.is_superuser:
+            return None
 
     signals = get_request_signals(request)
     if signals["signature_hash"]:

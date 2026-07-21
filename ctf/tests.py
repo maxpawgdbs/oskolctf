@@ -166,6 +166,16 @@ class SecurityControlTests(TestCase):
         self.assertTrue(SecurityBan.objects.filter(kind=SecurityBan.IP, value="203.0.113.10/32").exists())
         self.assertTrue(SecurityBan.objects.filter(kind=SecurityBan.SIGNATURE).exists())
 
+        admin_same_ip = Client()
+        admin_same_ip.force_login(self.superuser)
+        admin_response = admin_same_ip.get(
+            "/api/admin/users",
+            REMOTE_ADDR="203.0.113.10",
+            HTTP_X_CLIENT_SIGNATURE="victim-signature",
+        )
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertTrue(admin_response.json()["can_manage_security"])
+
         blocked = Client().get(
             "/api/csrf",
             REMOTE_ADDR="203.0.113.10",

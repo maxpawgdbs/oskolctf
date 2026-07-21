@@ -3189,6 +3189,15 @@
         function postJSON(url, body) {
           return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf }, body: JSON.stringify(body), credentials: 'same-origin' });
         }
+        async function adminPostJSON(url, body) {
+          if (!store.csrf) await store.refreshCsrf();
+          return apiJSON(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': store.csrf || '' },
+            body: JSON.stringify(body || {}),
+            credentials: 'same-origin',
+          });
+        }
         function showActionResult(type, title, lines = [], rules = []) {
           Object.assign(actionResult, { show: true, type, title, lines, rules });
         }
@@ -3279,7 +3288,7 @@
         }
         function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
         const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
-        async function toggleStaff(u) { const d = await postJSON('/api/admin/users/' + u.id + '/toggle-staff', {}).then(r => r.json()); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка', 'err'); }
+        async function toggleStaff(u) { const d = await adminPostJSON('/api/admin/users/' + u.id + '/toggle-staff', {}); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка выдачи прав', 'err'); }
         function openBanModal(u, mode) {
           Object.assign(banModal, { show: true, user: u, mode, reason: '', expires_hours: '', saving: false, error: '' });
         }
@@ -3287,28 +3296,34 @@
           if (!banModal.user) return;
           if (!banModal.reason.trim()) { banModal.error = 'Укажите причину — её увидит заблокированный пользователь.'; return; }
           banModal.saving = true; banModal.error = '';
-          const d = await postJSON('/api/admin/users/' + banModal.user.id + '/ban', {
-            mode: banModal.mode,
-            reason: banModal.reason.trim(),
-            expires_hours: banModal.expires_hours || null,
-          }).then(r => r.json());
-          banModal.saving = false;
-          if (d.ok) {
-            const rules = d.created_rules || [];
-            showActionResult('danger', banModal.user.username + ': блокировка создана', [
-              'Сработает правил: ' + rules.length,
-              'Сессий закрыто: ' + d.sessions_revoked,
-              'Причина: ' + banModal.reason.trim(),
-            ], rules);
-            store.toast(banModal.user.username + ': забанен, правил ' + rules.length + ', сессий закрыто ' + d.sessions_revoked, 'ok');
-            banModal.show = false;
-            await loadUsers();
-            await loadAuditLog();
-          } else banModal.error = d.error || 'Не удалось создать блокировку';
+          try {
+            const d = await adminPostJSON('/api/admin/users/' + banModal.user.id + '/ban', {
+              mode: banModal.mode,
+              reason: banModal.reason.trim(),
+              expires_hours: banModal.expires_hours || null,
+            });
+            if (d.ok) {
+              const rules = d.created_rules || [];
+              showActionResult('danger', banModal.user.username + ': блокировка создана', [
+                'Сработает правил: ' + rules.length,
+                'Сессий закрыто: ' + d.sessions_revoked,
+                'Причина: ' + banModal.reason.trim(),
+              ], rules);
+              store.toast(banModal.user.username + ': забанен, правил ' + rules.length + ', сессий закрыто ' + d.sessions_revoked, 'ok');
+              banModal.show = false;
+              await loadUsers();
+              await loadAuditLog();
+            } else {
+              banModal.error = d.error || 'Не удалось создать блокировку';
+              store.toast(banModal.error, 'err');
+            }
+          } finally {
+            banModal.saving = false;
+          }
         }
         async function unbanUser(u) {
           const active = u.active_ban_details || [];
-          for (const ban of active) await postJSON('/api/admin/security/bans/' + ban.id + '/revoke', {});
+          for (const ban of active) await adminPostJSON('/api/admin/security/bans/' + ban.id + '/revoke', {});
           store.toast(u.username + ': блокировки сняты', 'ok');
           await loadUsers();
         }
@@ -3319,18 +3334,24 @@
         async function confirmResetUserPassword() {
           if (!passwordModal.user || !passwordModal.password) return;
           passwordModal.saving = true; passwordModal.error = '';
-          const d = await postJSON('/api/admin/users/' + passwordModal.user.id + '/reset-password', { new_password: passwordModal.password }).then(r => r.json());
-          passwordModal.saving = false;
-          if (d.ok) {
-            showActionResult('ok', passwordModal.user.username + ': пароль изменён', [
-              'Роль цели: ' + (d.target_role || 'user'),
-              'Сессий закрыто: ' + d.sessions_revoked,
-              'Запись добавлена в журнал: «Пароль изменён суперпользователем».',
-            ]);
-            store.toast(passwordModal.user.username + ': пароль изменён, сессий закрыто ' + d.sessions_revoked, 'ok');
-            passwordModal.password = ''; passwordModal.show = false;
-            await loadAuditLog();
-          } else passwordModal.error = d.error || 'Ошибка';
+          try {
+            const d = await adminPostJSON('/api/admin/users/' + passwordModal.user.id + '/reset-password', { new_password: passwordModal.password });
+            if (d.ok) {
+              showActionResult('ok', passwordModal.user.username + ': пароль изменён', [
+                'Роль цели: ' + (d.target_role || 'user'),
+                'Сессий закрыто: ' + d.sessions_revoked,
+                'Запись добавлена в журнал: «Пароль изменён суперпользователем».',
+              ]);
+              store.toast(passwordModal.user.username + ': пароль изменён, сессий закрыто ' + d.sessions_revoked, 'ok');
+              passwordModal.password = ''; passwordModal.show = false;
+              await loadAuditLog();
+            } else {
+              passwordModal.error = d.error || 'Не удалось сменить пароль';
+              store.toast(passwordModal.error, 'err');
+            }
+          } finally {
+            passwordModal.saving = false;
+          }
         }
         function auditSummary(e) {
           const d = e.details || {};
