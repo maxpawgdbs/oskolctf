@@ -2,6 +2,7 @@ import hashlib
 import ipaddress
 
 from django.conf import settings
+from django.contrib.auth import SESSION_KEY, get_user_model
 from django.contrib.sessions.models import Session
 from django.db.models import F
 from django.http import JsonResponse
@@ -118,12 +119,28 @@ def revoke_user_sessions(user_id: int) -> int:
     return deleted
 
 
+def get_session_user_for_ban_check(request):
+    user = getattr(request, "user", None)
+    if user is not None and user.is_authenticated:
+        return user
+    try:
+        user_id = request.session.get(SESSION_KEY)
+    except Exception:
+        return user
+    if not user_id:
+        return user
+    try:
+        return get_user_model().objects.filter(pk=user_id).first() or user
+    except Exception:
+        return user
+
+
 class SecurityBanMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        ban = find_matching_ban(request, getattr(request, "user", None))
+        ban = find_matching_ban(request, get_session_user_for_ban_check(request))
         if ban:
             payload = public_ban_payload(ban)
             if request.path.startswith("/api/"):

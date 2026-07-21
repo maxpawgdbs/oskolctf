@@ -36,13 +36,13 @@ class SecurityControlTests(TestCase):
             HTTP_USER_AGENT="security-test-agent",
         )
 
-    def test_login_requires_csrf(self):
+    def test_login_without_csrf_is_allowed_for_auth_flow(self):
         response = Client(enforce_csrf_checks=True).post(
             "/api/auth/login",
             data=json.dumps({"username": "player", "password": "StrongPlayerPass!42"}),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
 
     def test_staff_cannot_ban_or_reset_password(self):
         client, token = self.csrf_client(self.staff)
@@ -80,6 +80,15 @@ class SecurityControlTests(TestCase):
         audit = AuditLog.objects.filter(action="login_blocked").latest("id")
         self.assertEqual(audit.details["kind_label"], "аккаунт")
         self.assertEqual(audit.details["reason"], "test")
+
+    def test_account_ban_middleware_checks_session_before_auth_middleware(self):
+        client = Client()
+        client.force_login(self.user)
+        SecurityBan.objects.create(kind=SecurityBan.ACCOUNT, user=self.user, reason="manual")
+        response = client.get("/api/me")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["ban"]["kind_label"], "аккаунт")
+        self.assertEqual(response.json()["ban"]["reason"], "manual")
 
     def test_superuser_can_reset_admin_password_and_sessions(self):
         staff_client = Client()
