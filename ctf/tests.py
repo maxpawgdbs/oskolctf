@@ -54,6 +54,25 @@ class SecurityControlTests(TestCase):
         self.assertEqual(ban.status_code, 403)
         self.assertEqual(reset.status_code, 403)
 
+    def test_superuser_security_actions_do_not_require_csrf_header(self):
+        admin = Client(enforce_csrf_checks=True)
+        admin.force_login(self.superuser)
+        ban = admin.post(
+            f"/api/admin/users/{self.user.id}/ban",
+            data=json.dumps({"mode": "account", "reason": "no csrf"}),
+            content_type="application/json",
+        )
+        self.assertEqual(ban.status_code, 200)
+        self.assertTrue(ban.json()["ok"])
+
+        reset = admin.post(
+            f"/api/admin/users/{self.staff.id}/reset-password",
+            data=json.dumps({"new_password": "AnotherStrongPass!42"}),
+            content_type="application/json",
+        )
+        self.assertEqual(reset.status_code, 200)
+        self.assertTrue(reset.json()["ok"])
+
     def test_superuser_ban_revokes_existing_session(self):
         victim = Client()
         victim.force_login(self.user)
