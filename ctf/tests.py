@@ -150,6 +150,37 @@ class SecurityControlTests(TestCase):
         after = viewer.get("/api/board").json()["leaderboard"]
         self.assertNotIn("player", [row["username"] for row in after])
 
+    def test_staff_can_hide_and_restore_user_in_leaderboard(self):
+        task = Task.objects.create(
+            task_id=9002,
+            name="Visibility test",
+            category="Web",
+            difficulty="Лёгкое",
+            description="",
+            points=150,
+            flag="oskolctf{visibility}",
+            active=True,
+        )
+        Solve.objects.create(user=self.user, task=task, points_awarded=150)
+        admin, token = self.csrf_client(self.staff)
+
+        before = admin.get("/api/board").json()["leaderboard"]
+        self.assertIn("player", [row["username"] for row in before])
+
+        hidden = self.post(admin, token, f"/api/admin/users/{self.user.id}/toggle-leaderboard", {})
+        self.assertEqual(hidden.status_code, 200)
+        self.assertTrue(hidden.json()["hidden_from_leaderboard"])
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.hidden_from_leaderboard)
+        after_hide = admin.get("/api/board").json()["leaderboard"]
+        self.assertNotIn("player", [row["username"] for row in after_hide])
+
+        restored = self.post(admin, token, f"/api/admin/users/{self.user.id}/toggle-leaderboard", {})
+        self.assertEqual(restored.status_code, 200)
+        self.assertFalse(restored.json()["hidden_from_leaderboard"])
+        after_restore = admin.get("/api/board").json()["leaderboard"]
+        self.assertIn("player", [row["username"] for row in after_restore])
+
     def test_login_records_hashed_trace_and_ignores_xff_by_default(self):
         client, token = self.csrf_client()
         response = self.post(

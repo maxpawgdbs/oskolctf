@@ -5,11 +5,19 @@
         color: #c00;
         font-weight: bold;
     }
+    .admin-svg-icon {
+        width: 1em;
+        height: 1em;
+        vertical-align: -0.15em;
+        margin-right: 0.3em;
+    }
 </style>
 {% endblock %}
 {% block content %}
 <div style="max-width:700px;">
-    <h1>⚡ Динамические цены</h1>
+    <h1><svg class="admin-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+                d="m13 2-2 7H5l5 4-2 7 6-4 6 4-2-7 5-4h-6Z" /></svg>Динамические цены</h1>
     <p style="color:#666;">Чем больше участников решили задание — тем меньше оно стоит. Очки фиксируются в момент сдачи
         флага.</p>
 
@@ -17,7 +25,7 @@
     <p class="errornote">{{ error }}</p>
     {% endif %}
     {% if success %}
-    <p class="success" style="color:#007f00;background:#e8f5e9;padding:8px 12px;border-radius:4px;margin-bottom:12px;">✓
+    <p class="success" style="color:#007f00;background:#e8f5e9;padding:8px 12px;border-radius:4px;margin-bottom:12px;">
         {{ success }}</p>
     {% endif %}
 
@@ -48,7 +56,7 @@
             </div>
         </fieldset>
         <div class="submit-row">
-            <input type="submit" value="💾 Сохранить настройки" class="default">
+            <input type="submit" value="Сохранить настройки" class="default">
         </div>
     </form>
 

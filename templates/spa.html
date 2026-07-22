@@ -229,6 +229,27 @@
       display: inline-block;
     }
 
+    .svg-icon {
+      width: 1em;
+      height: 1em;
+      flex: 0 0 auto;
+      display: inline-block;
+      vertical-align: -.16em;
+    }
+
+    .icon-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .icon-only {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
     /* ── Gradient text ── */
     .grad-text {
       background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
@@ -744,17 +765,90 @@
     }
 
     /* Leaderboard */
-    .lb-row td {
-      transition: background .3s ease;
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    .lb-row:hover td {
-      background: rgba(255, 255, 255, .07) !important;
+    .leaderboard-head,
+    .leaderboard-row {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) 76px 42px;
+      gap: 8px;
+      align-items: center;
     }
 
-    .lb-me td {
-      background: rgba(99, 102, 241, .08) !important;
-      border-color: rgba(99, 102, 241, .22) !important;
+    .leaderboard-head {
+      padding: 0 10px 4px;
+      color: var(--mutedOnDark);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .leaderboard-row {
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .035);
+      border: 1px solid rgba(255, 255, 255, .065);
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+
+    .leaderboard-row:hover {
+      background: rgba(255, 255, 255, .07);
+      border-color: rgba(255, 255, 255, .12);
+      transform: translateY(-1px);
+    }
+
+    .leaderboard-row.lb-me {
+      background: rgba(99, 102, 241, .09);
+      border-color: rgba(99, 102, 241, .24);
+    }
+
+    .leaderboard-rank,
+    .leaderboard-score,
+    .leaderboard-solves {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .leaderboard-user {
+      min-width: 0;
+      color: var(--textOnDark);
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .leaderboard-row.lb-me .leaderboard-user {
+      color: #a5b4fc;
+      font-weight: 800;
+    }
+
+    .leaderboard-score {
+      justify-self: end;
+      max-width: 100%;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, .14);
+      border: 1px solid rgba(99, 102, 241, .3);
+      color: #a5b4fc;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .leaderboard-solves {
+      justify-self: end;
+      color: var(--mutedOnDark);
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .rank-badge {
@@ -1351,6 +1445,10 @@
       cursor: pointer;
       transition: .14s ease;
       font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     .adm-btn-sm.primary {
@@ -1993,6 +2091,48 @@
       }
     }
 
+    /* ─────────────────── COMPONENT: SvgIcon ─────────────────── */
+    const SvgIcon = {
+      props: { name: { type: String, default: 'circle' }, size: { type: [Number, String], default: 16 } },
+      template: `
+    <svg class="svg-icon" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <template v-if="name==='user'"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></template>
+      <template v-else-if="name==='users'"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></template>
+      <template v-else-if="name==='crown'"><path d="m2 6 5 4 5-7 5 7 5-4-2 13H4L2 6Z"/><path d="M4 19h16"/></template>
+      <template v-else-if="name==='megaphone'"><path d="m3 11 18-5v12L3 14v-3Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></template>
+      <template v-else-if="name==='folder'"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></template>
+      <template v-else-if="name==='flag'"><path d="M4 22V4"/><path d="M4 4h12l-1.5 4L16 12H4"/></template>
+      <template v-else-if="name==='trophy'"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M5 5H3v3a4 4 0 0 0 4 4"/><path d="M19 5h2v3a4 4 0 0 1-4 4"/></template>
+      <template v-else-if="name==='medal'"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.2 7 22l5-3 5 3-1.5-9.8"/><path d="m10.5 8 1 1 2.5-3"/></template>
+      <template v-else-if="name==='target'"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></template>
+      <template v-else-if="name==='lock'"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></template>
+      <template v-else-if="name==='globe'"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></template>
+      <template v-else-if="name==='microscope'"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 0 0 7-7h-3a4 4 0 0 1-4 4Z"/><path d="M9 14 4 9l3-3 5 5Z"/><path d="m10.5 12.5 4-4"/><path d="m12 7 2-2 5 5-2 2Z"/></template>
+      <template v-else-if="name==='cog'"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V22a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 18l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H2.8a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 8A2 2 0 1 1 7 5.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3.8a2 2 0 1 1 4 0V4a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 8l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"/></template>
+      <template v-else-if="name==='spark'"><path d="m13 2-2 7H5l5 4-2 7 6-4 6 4-2-7 5-4h-6Z"/></template>
+      <template v-else-if="name==='search'"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></template>
+      <template v-else-if="name==='clipboard'"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4a3 3 0 0 1 6 0"/><path d="M9 12h6"/><path d="M9 16h6"/></template>
+      <template v-else-if="name==='pen'"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></template>
+      <template v-else-if="name==='key'"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9-9"/><path d="m15 6 3 3"/><path d="m17 4 3 3"/></template>
+      <template v-else-if="name==='chart'"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></template>
+      <template v-else-if="name==='eye-off'"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c5 0 9 5 9 7a9.5 9.5 0 0 1-2.2 3.3"/><path d="M6.6 6.6C4.4 8.1 3 10.4 3 12c0 2 4 7 9 7 1.4 0 2.8-.4 4-1"/></template>
+      <template v-else-if="name==='eye'"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></template>
+      <template v-else-if="name==='trash'"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></template>
+      <template v-else-if="name==='paperclip'"><path d="m21.4 11.6-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 1 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></template>
+      <template v-else-if="name==='file'"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></template>
+      <template v-else-if="name==='save'"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></template>
+      <template v-else-if="name==='x'"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></template>
+      <template v-else-if="name==='check'"><path d="m20 6-11 11-5-5"/></template>
+      <template v-else-if="name==='plus'"><path d="M12 5v14"/><path d="M5 12h14"/></template>
+      <template v-else-if="name==='upload'"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></template>
+      <template v-else-if="name==='refresh'"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/></template>
+      <template v-else-if="name==='alert'"><path d="M12 2 2 22h20Z"/><path d="M12 9v5"/><path d="M12 18h.01"/></template>
+      <template v-else-if="name==='pin'"><path d="m12 17-5 5"/><path d="M9 3h8l-2 7 4 4-5 5-4-4-7 2Z"/></template>
+      <template v-else><circle cx="12" cy="12" r="9"/></template>
+    </svg>
+  `,
+    };
+
     /* ─────────────────── COMPONENT: MacBar ─────────────────── */
     const MacBar = {
       props: ['title'],
@@ -2090,15 +2230,15 @@
 
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:44px;">
               <div class="feature">
-                <b>🔐 Web</b>
+                <b class="icon-inline"><svg-icon name="globe" /> Web</b>
                 <span>SQL injection, XSS, LFI, SSRF</span>
               </div>
               <div class="feature">
-                <b>🔑 Crypto</b>
+                <b class="icon-inline"><svg-icon name="key" /> Crypto</b>
                 <span>RSA, AES, кастомные шифры</span>
               </div>
               <div class="feature">
-                <b>🖥 Misc</b>
+                <b class="icon-inline"><svg-icon name="target" /> Misc</b>
                 <span>Forensics, OSINT, stego</span>
               </div>
             </div>
@@ -2358,8 +2498,8 @@
 
     /* ─────────────────── PAGE: Board ─────────────────── */
     const catIcons = {
-      'Web': '🌐', 'Разное': '🎯', 'Крипто': '🔐',
-      'Форензика': '🔬', 'Реверс': '⚙️', 'Pwn': '💥', 'ОСИНТ': '🕵️'
+      'Web': 'globe', 'Разное': 'target', 'Крипто': 'lock',
+      'Форензика': 'microscope', 'Реверс': 'cog', 'Pwn': 'spark', 'ОСИНТ': 'search'
     };
 
     const BoardPage = {
@@ -2400,7 +2540,7 @@
 
         function catCount(cat) { return tasks.value.filter(t => t.category === cat).length; }
         function catClass(cat) { return 'cat-' + cat.toLowerCase(); }
-        function catIcon(cat) { return catIcons[cat] || '🎯'; }
+        function catIcon(cat) { return catIcons[cat] || 'target'; }
         function diffClass(diff) { return 'diff-' + diff.toLowerCase(); }
 
         async function loadBoard() {
@@ -2505,10 +2645,10 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);font-size:12px;font-weight:800;color:var(--textOnDark);">
-                👤 {{ store.user?.display_name || store.user?.username }}
+                <svg-icon name="user" /> {{ store.user?.display_name || store.user?.username }}
               </div>
               <router-link to="/profile" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;">Профиль</router-link>
-              <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
+              <router-link v-if="store.user?.is_staff" to="/ctf-admin" class="icon-inline" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;"><svg-icon name="crown" /> Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
                 Выйти
               </button>
@@ -2527,7 +2667,7 @@
 
         <!-- Announcement banner -->
         <div v-if="announcement" style="margin-bottom:16px;padding:12px 18px;border-radius:12px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:#fde68a;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;">
-          <span style="font-size:18px;">📢</span>
+          <svg-icon name="megaphone" size="18" />
           <span>{{ announcement }}</span>
         </div>
 
@@ -2565,13 +2705,13 @@
             <!-- Category filter -->
             <div class="cat-filter">
               <button class="cat-btn" :class="{active: activeCat==='all'}" @click="activeCat='all'">
-                🗂 Все задания
+                <svg-icon name="folder" /> Все задания
                 <span class="cat-count">{{ totalCount }}</span>
               </button>
               <button v-for="cat in categories" :key="cat"
                 class="cat-btn" :class="{active: activeCat===cat}"
                 @click="activeCat=cat">
-                {{ catIcon(cat) }} {{ cat }}
+                <svg-icon :name="catIcon(cat)" /> {{ cat }}
                 <span class="cat-count">{{ catCount(cat) }}</span>
               </button>
             </div>
@@ -2583,11 +2723,11 @@
                 :style="{'animation-delay': (i*0.05)+'s'}"
                 @click="openModal(t)">
 
-                <div v-if="t.solved" class="solved-ribbon">✓ Решено</div>
+                <div v-if="t.solved" class="solved-ribbon icon-inline"><svg-icon name="check" /> Решено</div>
 
                 <div class="tc-top">
                   <span class="cat-label-tag" :class="catClass(t.category)">
-                    {{ catIcon(t.category) }} {{ t.category }}
+                    <svg-icon :name="catIcon(t.category)" /> {{ t.category }}
                   </span>
                   <span class="diff-label-tag" :class="diffClass(t.difficulty)">{{ t.difficulty }}</span>
                 </div>
@@ -2599,7 +2739,7 @@
 
                 <div class="tc-foot">
                   <span class="pts-chip">{{ t.points }} pts</span>
-                  <span class="solves-chip">👥 {{ t.solve_count }}</span>
+                  <span class="solves-chip"><svg-icon name="users" /> {{ t.solve_count }}</span>
                 </div>
               </div>
             </div>
@@ -2613,7 +2753,7 @@
               <div class="dark-card-h">
                 <mac-bar title="SUBMIT FLAG" />
                 <div>
-                  <p class="title" style="color:var(--textOnDark);font-size:17px;margin:0;">🚩 Сдать флаг</p>
+                  <p class="title icon-inline" style="color:var(--textOnDark);font-size:17px;margin:0;"><svg-icon name="flag" /> Сдать флаг</p>
                   <p class="subtitle" style="font-size:12px;">Формат: <span class="kbd">oskolctf{...}</span></p>
                 </div>
               </div>
@@ -2636,7 +2776,7 @@
               <div class="dark-card-h">
                 <mac-bar title="LEADERBOARD" />
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                  <p class="title" style="color:var(--textOnDark);font-size:17px;margin:0;">🏆 Таблица лидеров</p>
+                  <p class="title icon-inline" style="color:var(--textOnDark);font-size:17px;margin:0;"><svg-icon name="trophy" /> Таблица лидеров</p>
                   <div style="display:flex;align-items:center;gap:6px;">
                     <div class="refresh-dot"></div>
                     <span style="font-size:11px;font-weight:600;color:rgba(229,231,235,.3);">live</span>
@@ -2644,39 +2784,30 @@
                 </div>
               </div>
               <div class="dark-card-b" style="padding:12px 14px;">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th style="color:var(--mutedOnDark);">#</th>
-                      <th style="color:var(--mutedOnDark);">Участник</th>
-                      <th style="color:var(--mutedOnDark);">Очки</th>
-                      <th style="color:var(--mutedOnDark);">✓</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(r, i) in board" :key="r.username"
-                      class="lb-row" :class="r.username === store.user?.username ? 'lb-me' : ''"
-                      :style="{animationDelay:(i*0.04)+'s',animation:'fadeSlideIn .4s ease both',cursor:'pointer'}"
-                      @click="router.push('/profile/' + r.username)">
-                      <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
-                        <span v-if="i<3" style="font-size:18px;line-height:1;">{{ i===0?'🥇':i===1?'🥈':'🥉' }}</span>
-                        <span v-else class="rank-badge">{{ i+1 }}</span>
-                      </td>
-                      <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);"
-                        :style="{color:r.username===store.user?.username?'#a5b4fc':'var(--textOnDark)',fontWeight:r.username===store.user?.username?'800':'600'}">
-                        {{ r.display_name || r.username }}
-                        <span v-if="r.username===store.user?.username" style="font-size:10px;opacity:.45;margin-left:4px;">(ты)</span>
-                      </td>
-                      <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);">
-                        <span style="font-size:12px;padding:3px 9px;border-radius:999px;font-weight:700;background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;">{{ r.score }}</span>
-                      </td>
-                      <td style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);color:var(--mutedOnDark);">{{ r.solved_count }}</td>
-                    </tr>
-                    <tr v-if="!board.length">
-                      <td colspan="4" style="text-align:center;padding:24px;color:var(--mutedOnDark);background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.05);">Пока никого нет...</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div class="leaderboard-list">
+                  <div class="leaderboard-head">
+                    <span>#</span>
+                    <span>Участник</span>
+                    <span style="justify-self:end;">Очки</span>
+                    <span style="justify-self:end;"><svg-icon name="check" /></span>
+                  </div>
+                  <div v-for="(r, i) in board" :key="r.username"
+                    class="leaderboard-row" :class="r.username === store.user?.username ? 'lb-me' : ''"
+                    :style="{animationDelay:(i*0.04)+'s',animation:'fadeSlideIn .4s ease both'}"
+                    @click="router.push('/profile/' + r.username)">
+                    <div class="leaderboard-rank">
+                      <svg-icon v-if="i<3" name="medal" size="19" :style="{color: i===0?'#fbbf24':i===1?'#cbd5e1':'#fb923c'}" />
+                      <span v-else class="rank-badge">{{ i+1 }}</span>
+                    </div>
+                    <div class="leaderboard-user" :title="r.display_name || r.username">
+                      {{ r.display_name || r.username }}
+                      <span v-if="r.username===store.user?.username" style="font-size:10px;opacity:.45;margin-left:4px;">(ты)</span>
+                    </div>
+                    <div class="leaderboard-score">{{ r.score }}</div>
+                    <div class="leaderboard-solves">{{ r.solved_count }}</div>
+                  </div>
+                  <div v-if="!board.length" style="text-align:center;padding:24px;color:var(--mutedOnDark);background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:12px;">Пока никого нет...</div>
+                </div>
               </div>
             </div>
 
@@ -2691,10 +2822,10 @@
             <div style="flex:1;">
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                 <span class="cat-label-tag" :class="catClass(activeModal.category)">
-                  {{ catIcon(activeModal.category) }} {{ activeModal.category }}
+                  <svg-icon :name="catIcon(activeModal.category)" /> {{ activeModal.category }}
                 </span>
                 <span class="diff-label-tag" :class="diffClass(activeModal.difficulty)">{{ activeModal.difficulty }}</span>
-                <span v-if="activeModal.solved" class="solved-badge-sm">✓ Решено</span>
+                <span v-if="activeModal.solved" class="solved-badge-sm icon-inline"><svg-icon name="check" /> Решено</span>
               </div>
               <h2 class="spa-modal-title">{{ activeModal.name }}</h2>
             </div>
@@ -2703,9 +2834,9 @@
 
           <div class="spa-modal-body">
             <div>
-              <p class="spa-modal-section-label">📋 Описание задания</p>
+              <p class="spa-modal-section-label icon-inline"><svg-icon name="clipboard" /> Описание задания</p>
               <p class="spa-modal-desc">{{ activeModal.description }}</p>
-              <p v-if="activeModal.author" style="margin:6px 0 0;font-size:12px;color:#6b7280;">✍️ Автор:
+              <p v-if="activeModal.author" class="icon-inline" style="margin:6px 0 0;font-size:12px;color:#6b7280;"><svg-icon name="pen" /> Автор:
                 <a v-if="activeModal.author_url" :href="activeModal.author_url" target="_blank" rel="noopener noreferrer" style="color:#a5b4fc;font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ activeModal.author }}</a>
                 <span v-else style="color:#a5b4fc;font-weight:600;">{{ activeModal.author }}</span>
               </p>
@@ -2736,7 +2867,7 @@
               <template v-if="activeModal.solved">
                 <div class="spa-modal-stat-sep"></div>
                 <div class="spa-modal-stat">
-                  <span class="spa-modal-stat-v" style="color:#4ade80;">✓</span>
+                  <span class="spa-modal-stat-v" style="color:#4ade80;"><svg-icon name="check" /></span>
                   <span class="spa-modal-stat-l" style="color:#4ade80;">решено</span>
                 </div>
               </template>
@@ -2883,7 +3014,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;"> Борд</router-link>
-              <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
+              <router-link v-if="store.user?.is_staff" to="/ctf-admin" class="icon-inline" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;"><svg-icon name="crown" /> Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
             </div>
           </div>
@@ -2898,13 +3029,13 @@
           <div style="position:relative;flex-shrink:0;">
             <img v-if="profile.avatar" :src="profile.avatar" style="width:88px;height:88px;border-radius:999px;object-fit:cover;border:3px solid rgba(99,102,241,.4);" alt="">
             <div v-else style="width:88px;height:88px;border-radius:999px;background:rgba(99,102,241,.2);border:3px solid rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;font-size:34px;color:#a5b4fc;font-weight:900;">{{ (profile.display_name||profile.username)[0].toUpperCase() }}</div>
-            <button @click="$refs.avatarInput.click()" title="Сменить аватар" style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;border-radius:999px;background:#6366f1;border:2px solid #0b0f17;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✎</button>
+            <button @click="$refs.avatarInput.click()" title="Сменить аватар" class="icon-only" style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;border-radius:999px;background:#6366f1;border:2px solid #0b0f17;color:#fff;font-size:13px;cursor:pointer;"><svg-icon name="pen" /></button>
             <input type="file" ref="avatarInput" accept="image/*" style="display:none" @change="uploadAvatar">
           </div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
               <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--textOnDark);">{{ profile.display_name || profile.username }}</span>
-              <span v-if="profile.is_staff" style="font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;">👑 admin</span>
+              <span v-if="profile.is_staff" class="icon-inline" style="font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;"><svg-icon name="crown" /> admin</span>
             </div>
             <div style="font-size:13px;color:var(--mutedOnDark);margin-bottom:8px;">@{{ profile.username }}  ·  На сайте с {{ profile.member_since?.slice(0,10) }}</div>
             <div style="font-size:13px;color:var(--mutedOnDark);" v-if="profile.bio">{{ profile.bio }}</div>
@@ -2913,7 +3044,7 @@
               <div style="font-size:13px;color:var(--textOnDark);"><b style="color:#4ade80;font-size:17px;">{{ profile.solve_count }}</b> <span style="color:var(--mutedOnDark);">решено</span></div>
             </div>
           </div>
-          <button @click="editMode=!editMode" style="padding:8px 16px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">{{ editMode ? '× Отмена' : '✎ Редактировать' }}</button>
+          <button @click="editMode=!editMode" class="icon-inline" style="padding:8px 16px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><svg-icon :name="editMode ? 'x' : 'pen'" /> {{ editMode ? 'Отмена' : 'Редактировать' }}</button>
         </div>
 
         <!-- Edit form -->
@@ -2928,14 +3059,14 @@
               <div style="font-size:11px;font-weight:700;color:var(--mutedOnDark);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">О себе</div>
               <textarea v-model="editBio" maxlength="300" rows="3" placeholder="Кратко о себе…" style="width:100%;padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:var(--textOnDark);font-size:13px;font-family:inherit;outline:none;resize:vertical;"></textarea>
             </div>
-            <button @click="saveProfile" :disabled="saving" style="align-self:flex-start;padding:9px 20px;border-radius:10px;background:#6366f1;border:0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">{{ saving ? 'Сохраняю…' : '✓ Сохранить' }}</button>
+            <button @click="saveProfile" :disabled="saving" class="icon-inline" style="align-self:flex-start;padding:9px 20px;border-radius:10px;background:#6366f1;border:0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;"><span v-if="saving">Сохраняю…</span><template v-else><svg-icon name="check" /> Сохранить</template></button>
           </div>
         </div>
 
         <!-- Change password -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:16px 18px;margin-bottom:20px;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;" @click="pwMode=!pwMode">
-            <span style="font-size:13px;font-weight:700;color:var(--textOnDark);">🔑 Сменить пароль</span>
+            <span class="icon-inline" style="font-size:13px;font-weight:700;color:var(--textOnDark);"><svg-icon name="key" /> Сменить пароль</span>
             <span style="font-size:13px;color:var(--mutedOnDark);">{{ pwMode ? '▲' : '▼' }}</span>
           </div>
           <div v-if="pwMode" style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
@@ -2947,7 +3078,7 @@
 
         <!-- Progress chart -->
         <div v-if="solveChart" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:20px;">
-          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
+          <div class="icon-inline" style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);"><svg-icon name="chart" /> График прогресса</div>
           <div style="padding:12px 16px 8px;">
             <svg :viewBox="'0 0 '+solveChart.W+' '+solveChart.H" style="width:100%;height:auto;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -3039,7 +3170,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <router-link to="/board" style="padding:7px 14px;border-radius:999px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:12px;font-weight:700;text-decoration:none;"> Борд</router-link>
-              <router-link v-if="store.user?.is_staff" to="/ctf-admin" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;">👑 Admin</router-link>
+              <router-link v-if="store.user?.is_staff" to="/ctf-admin" class="icon-inline" style="font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;text-decoration:none;"><svg-icon name="crown" /> Admin</router-link>
               <button @click="logout" style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:var(--textOnDark);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Выйти</button>
             </div>
           </div>
@@ -3049,7 +3180,7 @@
         <span class="spin" style="font-size:26px;">⟳</span> Загрузка...
       </div>
       <div v-else-if="notFound" class="container" style="padding:80px 0;text-align:center;color:var(--mutedOnDark);">
-        <div style="font-size:40px;margin-bottom:12px;">🔎</div>
+        <div style="font-size:40px;margin-bottom:12px;color:#a5b4fc;"><svg-icon name="search" /></div>
         <div style="font-size:18px;font-weight:800;color:var(--textOnDark);">Пользователь не найден</div>
         <router-link to="/board" style="display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.28);color:#a5b4fc;font-size:13px;font-weight:700;text-decoration:none;"> На борд</router-link>
       </div>
@@ -3062,7 +3193,7 @@
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
               <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--textOnDark);">{{ profile.display_name || profile.username }}</span>
-              <span v-if="profile.is_staff" style="font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;">👑 admin</span>
+              <span v-if="profile.is_staff" class="icon-inline" style="font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28);color:#fbbf24;font-weight:700;"><svg-icon name="crown" /> admin</span>
             </div>
             <div style="font-size:13px;color:var(--mutedOnDark);margin-bottom:8px;">@{{ profile.username }}  ·  На сайте с {{ profile.member_since?.slice(0,10) }}</div>
             <div style="font-size:13px;color:var(--mutedOnDark);" v-if="profile.bio">{{ profile.bio }}</div>
@@ -3074,7 +3205,7 @@
         </div>
         <!-- Progress chart -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden;margin-bottom:16px;">
-          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);">📈 График прогресса</div>
+          <div class="icon-inline" style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--textOnDark);"><svg-icon name="chart" /> График прогресса</div>
           <div v-if="solveChart" style="padding:12px 16px 8px;">
             <svg :viewBox="'0 0 '+solveChart.W+' '+solveChart.H" style="width:100%;height:auto;display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -3164,6 +3295,7 @@
           task_id: 'ID задания', task_name: 'Название задания',
           points_awarded: 'Очков получено', base_points: 'Базовые очки',
           is_staff: 'Статус admin', changed_by: 'Изменил',
+          hidden_from_leaderboard: 'Скрыт из лидерборда',
           deleted_count: 'Удалено записей', reset_by: 'Сброс выполнил',
           flag_len: 'Длина флага', solve_count: 'Решений было',
           bio: 'О себе', avatar_changed: 'Аватар изменён',
@@ -3289,6 +3421,15 @@
         function goUsers() { page.value = 'users'; if (users.value.length === 0) loadUsers(); }
         const filteredUsers = computed(() => { const q = userSearch.value.toLowerCase(); if (!q) return users.value; return users.value.filter(u => u.username.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q)); });
         async function toggleStaff(u) { const d = await adminPostJSON('/api/admin/users/' + u.id + '/toggle-staff', {}); if (d.ok) { u.is_staff = d.is_staff; store.toast(d.is_staff ? u.username + ' → admin' : u.username + ' → user', 'info'); } else store.toast(d.error || 'Ошибка выдачи прав', 'err'); }
+        async function toggleLeaderboardVisibility(u) {
+          const d = await adminPostJSON('/api/admin/users/' + u.id + '/toggle-leaderboard', {});
+          if (d.ok) {
+            u.hidden_from_leaderboard = d.hidden_from_leaderboard;
+            store.toast(d.hidden_from_leaderboard ? u.username + ': скрыт из лидерборда' : u.username + ': снова в лидерборде', d.hidden_from_leaderboard ? 'info' : 'ok');
+          } else {
+            store.toast(d.error || 'Ошибка изменения лидерборда', 'err');
+          }
+        }
         function openBanModal(u, mode) {
           Object.assign(banModal, { show: true, user: u, mode, reason: '', expires_hours: '', saving: false, error: '' });
         }
@@ -3404,7 +3545,7 @@
           modal.action = syncFromFile;
           modal.show = true;
         }
-        function confirmResetAll() { modal.title = '☢ Ядерный сброс'; modal.text = 'Удалить ВСЕ решения у всех пользователей? Это действие необратимо.'; modal.action = resetAllSolves; modal.show = true; }
+        function confirmResetAll() { modal.title = 'Ядерный сброс'; modal.text = 'Удалить ВСЕ решения у всех пользователей? Это действие необратимо.'; modal.action = resetAllSolves; modal.show = true; }
         async function resetAllSolves() { const d = await postJSON('/api/admin/reset-solves', {}).then(r => r.json()); if (d.ok) { store.toast('Сброшено ' + d.deleted + ' решений', 'ok'); users.value = []; tasks.value = []; loadStats(); } else store.toast(d.error || 'Ошибка', 'err'); }
         function goSettings() { page.value = 'settings'; loadAnnouncement(); }
         async function loadDynamicPricing() {
@@ -3443,7 +3584,7 @@
           postJSON('/api/admin/audit-entry', {}).catch(() => { });
         });
 
-        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, actionResult, canManageSecurity, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, auditSummary, prettyValue, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
+        return { store, page, me, stats, tasks, users, announcement, announcementEdit, savingAnn, tasksLoading, usersLoading, taskSearch, userSearch, importText, importing, importResult, modal, dpConfig, dpPreview, dpSaving, auditLog, auditTotal, auditPage, auditFilter, auditChoices, auditLoading, auditDetail, actionResult, canManageSecurity, FIELD_LABELS, pageTitles, filteredTasks, filteredUsers, categories, difficulties, taskModal, passwordModal, banModal, goTasks, goUsers, goSettings, openCreateTask, openEditTask, saveTaskModal, uploadTaskFile, toggleTask, savePts, confirmClearSolves, confirmDeleteTask, toggleStaff, toggleLeaderboardVisibility, openBanModal, confirmBanUser, unbanUser, formatBanExpiry, resetUserPassword, confirmResetUserPassword, auditSummary, prettyValue, onDrop, onFileSelect, doImport, syncFromFile, confirmHardSyncFromFile, confirmResetAll, saveAnnouncement, loadDynamicPricing, saveDynamicPricing, goDP, loadAuditLog, goJournal };
       },
       template: `
   <div class="admin-view">
@@ -3454,16 +3595,16 @@
       </div>
       <div class="adm-nav" style="padding:8px 0;flex:1;">
         <div class="adm-nav-section">Обзор</div>
-        <div class="adm-nav-item" :class="{active:page==='dashboard'}" @click="page='dashboard'"><span class="icon">⊞</span> Дашборд</div>
+        <div class="adm-nav-item" :class="{active:page==='dashboard'}" @click="page='dashboard'"><span class="icon"><svg-icon name="chart" /></span> Дашборд</div>
         <div class="adm-nav-section">Контент</div>
-        <div class="adm-nav-item" :class="{active:page==='tasks'}" @click="goTasks"><span class="icon">⚑</span> Задания</div>
-        <div class="adm-nav-item" :class="{active:page==='create_task'}" @click="openCreateTask()"><span class="icon">＋</span> Создать задание</div>
-        <div class="adm-nav-item" :class="{active:page==='users'}" @click="goUsers"><span class="icon">⊙</span> Пользователи</div>
+        <div class="adm-nav-item" :class="{active:page==='tasks'}" @click="goTasks"><span class="icon"><svg-icon name="flag" /></span> Задания</div>
+        <div class="adm-nav-item" :class="{active:page==='create_task'}" @click="openCreateTask()"><span class="icon"><svg-icon name="plus" /></span> Создать задание</div>
+        <div class="adm-nav-item" :class="{active:page==='users'}" @click="goUsers"><span class="icon"><svg-icon name="users" /></span> Пользователи</div>
         <div class="adm-nav-section">Система</div>
-        <div class="adm-nav-item" :class="{active:page==='import'}" @click="page='import';importText=''"><span class="icon">↑</span> Импорт JSON</div>
-        <div class="adm-nav-item" :class="{active:page==='settings'}" @click="goSettings"><span class="icon">⚙</span> Настройки</div>
-        <div class="adm-nav-item" :class="{active:page==='dynamic_pricing'}" @click="goDP"><span class="icon">⚡</span> Дин. цены</div>
-        <div class="adm-nav-item" :class="{active:page==='journal'}" @click="goJournal"><span class="icon">📋</span> Журнал</div>
+        <div class="adm-nav-item" :class="{active:page==='import'}" @click="page='import';importText=''"><span class="icon"><svg-icon name="upload" /></span> Импорт JSON</div>
+        <div class="adm-nav-item" :class="{active:page==='settings'}" @click="goSettings"><span class="icon"><svg-icon name="cog" /></span> Настройки</div>
+        <div class="adm-nav-item" :class="{active:page==='dynamic_pricing'}" @click="goDP"><span class="icon"><svg-icon name="spark" /></span> Дин. цены</div>
+        <div class="adm-nav-item" :class="{active:page==='journal'}" @click="goJournal"><span class="icon"><svg-icon name="clipboard" /></span> Журнал</div>
       </div>
       <div class="adm-footer">
         <a href="#" @click.prevent="$router.push('/board')" class="adm-back-link">На сайт</a>
@@ -3472,7 +3613,7 @@
     <div class="adm-main">
       <div class="adm-topbar">
         <div class="page-title">{{ pageTitles[page] || 'Admin' }}</div>
-        <div class="user-chip" v-if="me"><img v-if="me.avatar" :src="me.avatar" alt=""><span v-else style="font-size:14px;">👤</span> {{ me.display_name || me.username }}</div>
+        <div class="user-chip" v-if="me"><img v-if="me.avatar" :src="me.avatar" alt=""><span v-else style="font-size:14px;"><svg-icon name="user" /></span> {{ me.display_name || me.username }}</div>
       </div>
       <div class="adm-content">
         <div v-if="actionResult.show" class="adm-action-result" :class="actionResult.type">
@@ -3503,9 +3644,9 @@
             <div class="adm-card-h"><div class="adm-card-title">Быстрые действия</div></div>
             <div class="adm-card-b">
               <div class="adm-quick-actions">
-                <div class="adm-qa-card" @click="goTasks"><div class="adm-qa-icon">⚑</div><div class="adm-qa-title">Задания</div><div class="adm-qa-desc">Управление заданиями</div></div>
-                <div class="adm-qa-card" @click="goUsers"><div class="adm-qa-icon">⊙</div><div class="adm-qa-title">Пользователи</div><div class="adm-qa-desc">Список и права</div></div>
-                <div class="adm-qa-card" @click="confirmHardSyncFromFile"><div class="adm-qa-icon">↻</div><div class="adm-qa-title">Жесткий sync JSON</div><div class="adm-qa-desc">Перезаписать из task(s).json</div></div>
+                <div class="adm-qa-card" @click="goTasks"><div class="adm-qa-icon"><svg-icon name="flag" /></div><div class="adm-qa-title">Задания</div><div class="adm-qa-desc">Управление заданиями</div></div>
+                <div class="adm-qa-card" @click="goUsers"><div class="adm-qa-icon"><svg-icon name="users" /></div><div class="adm-qa-title">Пользователи</div><div class="adm-qa-desc">Список и права</div></div>
+                <div class="adm-qa-card" @click="confirmHardSyncFromFile"><div class="adm-qa-icon"><svg-icon name="refresh" /></div><div class="adm-qa-title">Жесткий sync JSON</div><div class="adm-qa-desc">Перезаписать из task(s).json</div></div>
               </div>
             </div>
           </div>
@@ -3519,9 +3660,9 @@
         <div v-else-if="page === 'tasks'">
           <div class="adm-section-row">
             <div class="adm-section-title">Задания ({{ tasks.length }})</div>
-            <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon">🔍</span><input class="adm-input" placeholder="Поиск…" v-model="taskSearch"></div>
-            <button class="adm-btn primary" @click="openCreateTask()">＋ Создать</button>
-            <button class="adm-btn gray" @click="page='import';importText=''">↑ Импорт</button>
+            <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon"><svg-icon name="search" /></span><input class="adm-input" placeholder="Поиск…" v-model="taskSearch"></div>
+            <button class="adm-btn primary" @click="openCreateTask()"><svg-icon name="plus" /> Создать</button>
+            <button class="adm-btn gray" @click="page='import';importText=''"><svg-icon name="upload" /> Импорт</button>
           </div>
           <div class="adm-card" v-if="tasksLoading" style="padding:28px;text-align:center;"><span class="adm-spinner"></span></div>
           <div class="adm-card adm-table-card" v-else>
@@ -3530,15 +3671,15 @@
               <tbody>
                 <tr v-for="t in filteredTasks" :key="t.id">
                   <td style="font-family:ui-monospace,monospace;font-size:12px;color:rgba(229,231,235,.45);">{{ t.id }}</td>
-                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div><div v-if="t.file" style="font-size:11px;color:#4ade80;margin-top:2px;">📎 {{ t.file.split('/').pop() }}</div></td>
+                  <td><div style="font-weight:700;">{{ t.name }}</div><div v-if="t.author" style="font-size:11px;color:rgba(229,231,235,.45);margin-top:2px;">автор: {{ t.author }}</div><div v-if="t.file" class="icon-inline" style="font-size:11px;color:#4ade80;margin-top:2px;"><svg-icon name="paperclip" /> {{ t.file.split('/').pop() }}</div></td>
                   <td><span class="adm-badge-gray">{{ t.category }}</span></td>
                   <td><input class="adm-input adm-input-sm" type="number" min="0" v-model.number="t._pts" @change="savePts(t)"></td>
                   <td><span class="adm-badge-indigo">{{ t.solve_count }}</span></td>
                   <td><label class="adm-toggle"><input type="checkbox" :checked="t.active" @change="toggleTask(t)"><span class="adm-track"></span></label></td>
                   <td style="white-space:nowrap;">
-                    <button class="adm-btn-sm primary" @click="openEditTask(t)" style="margin-right:4px;">✎</button>
-                    <button class="adm-btn-sm danger" :disabled="t.solve_count === 0" @click="confirmClearSolves(t)" title="Сбросить решения" style="margin-right:4px;">✕</button>
-                    <button class="adm-btn-sm danger" @click="confirmDeleteTask(t)" title="Удалить задание">🗑</button>
+                    <button class="adm-btn-sm primary icon-only" @click="openEditTask(t)" title="Редактировать" style="margin-right:4px;"><svg-icon name="pen" /></button>
+                    <button class="adm-btn-sm danger icon-only" :disabled="t.solve_count === 0" @click="confirmClearSolves(t)" title="Сбросить решения" style="margin-right:4px;"><svg-icon name="x" /></button>
+                    <button class="adm-btn-sm danger icon-only" @click="confirmDeleteTask(t)" title="Удалить задание"><svg-icon name="trash" /></button>
                   </td>
                 </tr>
                 <tr v-if="filteredTasks.length === 0"><td colspan="7" style="text-align:center;color:rgba(229,231,235,.35);padding:28px;">Нет заданий</td></tr>
@@ -3551,7 +3692,7 @@
         <div v-else-if="page === 'users'">
           <div class="adm-section-row">
             <div><div class="adm-section-title">Пользователи ({{ users.length }})</div><div class="adm-user-meta">Управление ролями, блокировками и паролями</div></div>
-            <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon">🔍</span><input class="adm-input" placeholder="Поиск…" v-model="userSearch"></div>
+            <div class="adm-search-wrap" style="margin-left:auto;width:220px;"><span class="adm-search-icon"><svg-icon name="search" /></span><input class="adm-input" placeholder="Поиск…" v-model="userSearch"></div>
           </div>
           <div class="adm-security-note" :class="{'danger': !canManageSecurity}">
             <div><strong>{{ canManageSecurity ? 'Режим суперпользователя' : 'Только просмотр безопасности' }}</strong><br>
@@ -3564,7 +3705,7 @@
               <thead><tr><th>Пользователь</th><th>Результат</th><th>Роль и безопасность</th><th>Действия</th></tr></thead>
               <tbody>
                 <tr v-for="u in filteredUsers" :key="u.id">
-                  <td class="adm-user-cell"><div class="adm-user-main"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:800;">{{ u.display_name || u.username }} <span v-if="u.active_bans" class="adm-badge-red">Заблокирован</span></div><div class="adm-user-meta">@{{ u.username }} · с {{ u.date_joined }}</div><div class="adm-user-meta" v-if="u.last_ips?.length">IP: {{ u.last_ips.join(', ') }}</div></div></div></td>
+                  <td class="adm-user-cell"><div class="adm-user-main"><img v-if="u.avatar" :src="u.avatar" class="adm-avatar-xs" alt=""><div v-else class="adm-avatar-def">{{ (u.display_name||u.username)[0].toUpperCase() }}</div><div><div style="font-weight:800;">{{ u.display_name || u.username }} <span v-if="u.active_bans" class="adm-badge-red">Заблокирован</span> <span v-if="u.hidden_from_leaderboard" class="adm-badge-gray">скрыт из лидерборда</span></div><div class="adm-user-meta">@{{ u.username }} · с {{ u.date_joined }}</div><div class="adm-user-meta" v-if="u.last_ips?.length">IP: {{ u.last_ips.join(', ') }}</div></div></div></td>
                   <td data-label="Результат"><div><span class="adm-badge-indigo">{{ u.score }} очков</span><div class="adm-user-meta" style="margin-top:5px;">Решено: {{ u.solved_count }}</div></div></td>
                   <td data-label="Статус">
                     <div><span v-if="u.is_superuser" class="adm-badge-red">superuser</span><span v-else-if="u.is_staff" class="adm-badge-indigo">admin</span><span v-else class="adm-badge-gray">user</span>
@@ -3578,7 +3719,8 @@
                     </div>
                   </td>
                   <td data-label="Действия"><div class="adm-user-actions">
-                    <button v-if="canManageSecurity && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)">{{ u.is_staff ? '✕ Снять' : '✓ Дать' }} admin</button>
+                    <button class="adm-btn-sm" :class="u.hidden_from_leaderboard ? 'success' : 'gray'" @click="toggleLeaderboardVisibility(u)"><svg-icon :name="u.hidden_from_leaderboard ? 'eye' : 'eye-off'" /> {{ u.hidden_from_leaderboard ? 'Показать' : 'Скрыть' }}</button>
+                    <button v-if="canManageSecurity && !u.is_superuser" class="adm-btn-sm" :class="u.is_staff ? 'danger' : 'success'" @click="toggleStaff(u)"><svg-icon :name="u.is_staff ? 'x' : 'check'" /> {{ u.is_staff ? 'Снять' : 'Дать' }} admin</button>
                     <template v-if="canManageSecurity && u.id !== store.user.id">
                       <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="openBanModal(u, 'account')">Бан аккаунта</button>
                       <button v-if="!u.active_bans" class="adm-btn-sm danger" @click="openBanModal(u, 'all_traces')" title="Аккаунт + известные IP и клиентские сигнатуры">Бан по следам</button>
@@ -3600,7 +3742,7 @@
           <div class="adm-card" style="margin-bottom:18px;">
             <div class="adm-card-h"><div class="adm-card-title">Загрузить файл</div></div>
             <div class="adm-card-b">
-              <div class="adm-import-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop"><div style="font-size:32px;margin-bottom:8px;">📄</div><div style="font-size:13px;font-weight:700;">Перетащите tasks.json или кликните</div><div style="font-size:12px;margin-top:4px;">JSON-массив заданий</div></div>
+              <div class="adm-import-zone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="onDrop"><div style="font-size:32px;margin-bottom:8px;color:#a5b4fc;"><svg-icon name="file" /></div><div style="font-size:13px;font-weight:700;">Перетащите tasks.json или кликните</div><div style="font-size:12px;margin-top:4px;">JSON-массив заданий</div></div>
               <input type="file" ref="fileInput" accept=".json" style="display:none" @change="onFileSelect">
             </div>
           </div>
@@ -3609,8 +3751,8 @@
             <div class="adm-card-b">
               <textarea class="adm-input" style="min-height:220px;font-family:ui-monospace,monospace;font-size:12px;" placeholder='[{"task_id":1,"name":"...","flag":"..."}]' v-model="importText"></textarea>
               <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
-                <button class="adm-btn primary" :disabled="!importText.trim() || importing" @click="doImport"><span v-if="importing" class="adm-spinner"></span><span v-else>↑ Загрузить</span></button>
-                <button class="adm-btn gray" @click="confirmHardSyncFromFile">↻ Жестко синх. из task(s).json</button>
+                <button class="adm-btn primary" :disabled="!importText.trim() || importing" @click="doImport"><span v-if="importing" class="adm-spinner"></span><template v-else><svg-icon name="upload" /> Загрузить</template></button>
+                <button class="adm-btn gray" @click="confirmHardSyncFromFile"><svg-icon name="refresh" /> Жестко синх. из task(s).json</button>
                 <span v-if="importResult" style="font-size:12px;font-weight:600;" :style="{color: importResult.ok ? '#4ade80' : '#f87171'}">{{ importResult.ok ? 'Создано: ' + importResult.created + ', обновлено: ' + importResult.updated : importResult.error }}</span>
               </div>
             </div>
@@ -3621,32 +3763,32 @@
         <div v-else-if="page === 'settings'">
           <div class="adm-section-row"><div class="adm-section-title">Настройки</div></div>
           <div class="adm-card" style="margin-bottom:20px;">
-            <div class="adm-card-h"><div class="adm-card-title">↻ Синхронизация заданий</div></div>
+            <div class="adm-card-h"><div class="adm-card-title icon-inline"><svg-icon name="refresh" /> Синхронизация заданий</div></div>
             <div class="adm-card-b">
               <div style="font-size:12px;color:rgba(229,231,235,.55);margin-bottom:12px;">Принудительно перечитывает task(s).json и обновляет задания в базе данных.</div>
               <button class="adm-btn gray" @click="confirmHardSyncFromFile" :disabled="importing">
                 <span v-if="importing" class="adm-spinner"></span>
-                <span v-else>↻ Жестко синхронизировать из task(s).json</span>
+                <template v-else><svg-icon name="refresh" /> Жестко синхронизировать из task(s).json</template>
               </button>
             </div>
           </div>
           <div class="adm-card" style="margin-bottom:20px;">
-            <div class="adm-card-h"><div class="adm-card-title">📢 Баннер объявления</div></div>
+            <div class="adm-card-h"><div class="adm-card-title icon-inline"><svg-icon name="megaphone" /> Баннер объявления</div></div>
             <div class="adm-card-b">
               <div style="margin-bottom:10px;font-size:12px;color:rgba(229,231,235,.55);">Отображается всем авторизованным пользователям на доске. Оставьте пустым, чтобы убрать.</div>
               <textarea class="adm-input" style="min-height:80px;" placeholder="Текст объявления…" v-model="announcementEdit"></textarea>
               <div style="display:flex;gap:10px;margin-top:10px;">
-                <button class="adm-btn primary" @click="saveAnnouncement" :disabled="savingAnn"><span v-if="savingAnn" class="adm-spinner"></span><span v-else>✓ Сохранить</span></button>
-                <button class="adm-btn gray" @click="announcementEdit = ''; saveAnnouncement()">✕ Убрать</button>
+                <button class="adm-btn primary" @click="saveAnnouncement" :disabled="savingAnn"><span v-if="savingAnn" class="adm-spinner"></span><template v-else><svg-icon name="check" /> Сохранить</template></button>
+                <button class="adm-btn gray" @click="announcementEdit = ''; saveAnnouncement()"><svg-icon name="x" /> Убрать</button>
               </div>
             </div>
           </div>
           <div class="adm-card">
-            <div class="adm-card-h"><div class="adm-card-title">☢ Опасная зона</div></div>
+            <div class="adm-card-h"><div class="adm-card-title icon-inline"><svg-icon name="alert" /> Опасная зона</div></div>
             <div class="adm-card-b">
               <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.18);border-radius:10px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                 <div><div style="font-size:13px;font-weight:800;color:#f87171;">Сбросить ВСЕ решения</div><div style="font-size:12px;color:rgba(239,68,68,.65);margin-top:3px;">Удалит все записи о решениях у всех пользователей. Необратимо.</div></div>
-                <button class="adm-btn danger" @click="confirmResetAll">☢ Сбросить всё</button>
+                <button class="adm-btn danger" @click="confirmResetAll"><svg-icon name="alert" /> Сбросить всё</button>
               </div>
             </div>
           </div>
@@ -3654,7 +3796,7 @@
 
         <!-- DYNAMIC PRICING -->
         <div v-else-if="page === 'dynamic_pricing'">
-          <div class="adm-section-row"><div class="adm-section-title">⚡ Динамические цены</div></div>
+          <div class="adm-section-row"><div class="adm-section-title icon-inline"><svg-icon name="spark" /> Динамические цены</div></div>
           <div class="adm-card" style="margin-bottom:20px;">
             <div class="adm-card-h"><div class="adm-card-title">Настройки</div></div>
             <div class="adm-card-b">
@@ -3681,7 +3823,7 @@
                 </div>
                 <div>
                   <button class="adm-btn primary" @click="saveDynamicPricing" :disabled="dpSaving">
-                    <span v-if="dpSaving" class="adm-spinner"></span><span v-else>💾 Сохранить</span>
+                    <span v-if="dpSaving" class="adm-spinner"></span><template v-else><svg-icon name="save" /> Сохранить</template>
                   </button>
                 </div>
               </div>
@@ -3715,7 +3857,7 @@
         <!-- JOURNAL -->
         <div v-else-if="page === 'journal'">
           <div class="adm-section-row">
-            <div class="adm-section-title">📋 Журнал действий</div>
+            <div class="adm-section-title icon-inline"><svg-icon name="clipboard" /> Журнал действий</div>
             <select class="adm-input" v-model="auditFilter" @change="auditPage=1;loadAuditLog()" style="width:220px;margin-left:auto;">
               <option v-for="c in auditChoices" :key="c.value" :value="c.value">{{ c.label }}</option>
             </select>
@@ -3763,8 +3905,8 @@
                         ''">{{ e.action_label }}</span>
                     </td>
                     <td style="color:rgba(229,231,235,.7);">
-                      <span v-if="e.target_task">📌 {{ e.target_task }}</span>
-                      <span v-else-if="e.target_user">👤 {{ e.target_user }}</span>
+                      <span v-if="e.target_task" class="icon-inline"><svg-icon name="pin" /> {{ e.target_task }}</span>
+                      <span v-else-if="e.target_user" class="icon-inline"><svg-icon name="user" /> {{ e.target_user }}</span>
                       <span v-else style="color:rgba(229,231,235,.25);">—</span>
                     </td>
                     <td style="font-family:ui-monospace,monospace;font-size:11px;color:rgba(229,231,235,.58);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="auditSummary(e)">
@@ -3794,8 +3936,8 @@
     <div class="adm-modal-overlay" v-if="auditDetail" @click.self="auditDetail=null" style="z-index:1020;">
       <div class="adm-modal-box" style="max-width:680px;width:96%;max-height:82vh;overflow-y:auto;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-          <h3 style="margin:0;font-size:15px;font-weight:800;color:var(--textOnDark);">📋 Детали события</h3>
-          <button class="adm-btn-sm gray" @click="auditDetail=null" style="font-size:16px;line-height:1;">✕</button>
+          <h3 class="icon-inline" style="margin:0;font-size:15px;font-weight:800;color:var(--textOnDark);"><svg-icon name="clipboard" /> Детали события</h3>
+          <button class="adm-btn-sm gray icon-only" @click="auditDetail=null" aria-label="Закрыть" style="font-size:16px;line-height:1;"><svg-icon name="x" /></button>
         </div>
 
         <!-- Meta grid -->
@@ -3833,11 +3975,11 @@
           </div>
           <div v-if="auditDetail.target_task">
             <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Задание</div>
-            <div style="font-size:13px;color:var(--textOnDark);">📌 {{ auditDetail.target_task }}</div>
+            <div class="icon-inline" style="font-size:13px;color:var(--textOnDark);"><svg-icon name="pin" /> {{ auditDetail.target_task }}</div>
           </div>
           <div v-if="auditDetail.target_user">
             <div style="font-size:10px;font-weight:700;color:rgba(229,231,235,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Целевой пользователь</div>
-            <div style="font-size:13px;color:var(--textOnDark);">👤 {{ auditDetail.target_user }}</div>
+            <div class="icon-inline" style="font-size:13px;color:var(--textOnDark);"><svg-icon name="user" /> {{ auditDetail.target_user }}</div>
           </div>
         </div>
 
@@ -3932,7 +4074,7 @@
     <!-- Task Create/Edit Modal -->
     <div class="adm-modal-overlay" v-if="taskModal.show" @click.self="taskModal.show=false" style="z-index:1010;">
       <div class="adm-modal-box wide">
-        <h3 style="margin:0 0 18px;">{{ taskModal.mode === 'create' ? '＋ Создать задание' : '✎ Редактировать задание' }}</h3>
+        <h3 class="icon-inline" style="margin:0 0 18px;"><svg-icon :name="taskModal.mode === 'create' ? 'plus' : 'pen'" /> {{ taskModal.mode === 'create' ? 'Создать задание' : 'Редактировать задание' }}</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div v-if="taskModal.mode === 'create'"><div class="adm-field-lbl">ID (авто если пусто)</div><input class="adm-input" v-model="taskModal.f.task_id" type="number" min="1" placeholder="Авто"></div>
           <div v-else><div class="adm-field-lbl">ID</div><input class="adm-input" :value="taskModal.f.task_id" disabled style="opacity:.5;"></div>
@@ -3949,10 +4091,10 @@
             <div class="adm-field-lbl">Файл задания</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <label style="display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);cursor:pointer;font-size:13px;font-weight:600;color:var(--textOnDark);">
-                📎 Выбрать файл
+                <svg-icon name="paperclip" /> Выбрать файл
                 <input type="file" style="display:none;" @change="taskModal.mode==='edit' ? uploadTaskFile($event) : (taskModal.pendingFile=$event.target.files[0], taskModal.uploadedFile=$event.target.files[0]?.name||'', $event.target.value='')">
               </label>
-              <span v-if="taskModal.uploadedFile" style="font-size:12px;color:#4ade80;font-weight:700;">✓ {{ taskModal.uploadedFile }}</span>
+              <span v-if="taskModal.uploadedFile" class="icon-inline" style="font-size:12px;color:#4ade80;font-weight:700;"><svg-icon name="check" /> {{ taskModal.uploadedFile }}</span>
               <span v-if="taskModal.uploadErr" style="font-size:12px;color:#f87171;font-weight:700;">{{ taskModal.uploadErr }}</span>
             </div>
           </div>
@@ -4006,6 +4148,7 @@
     });
 
     App.use(router);
+    App.component('svg-icon', SvgIcon);
     App.mount('#app');
 
     /* vibecode front by nekoty */

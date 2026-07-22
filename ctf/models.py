@@ -31,6 +31,10 @@ class User(AbstractUser):
         max_length=300,
         verbose_name="О себе",
     )
+    hidden_from_leaderboard = models.BooleanField(
+        default=False,
+        verbose_name="Скрыть из общего лидерборда",
+    )
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Зарегистрирован")
 
     class Meta:
@@ -276,6 +280,7 @@ class AuditLog(models.Model):
         ('ban_created',            'Создана блокировка'),
         ('ban_revoked',            'Снята блокировка'),
         ('password_reset',         'Пароль изменён суперпользователем'),
+        ('leaderboard_visibility', 'Видимость в лидерборде'),
     ]
 
     timestamp   = models.DateTimeField(default=timezone.now, verbose_name='Время')

@@ -314,10 +314,10 @@ def api_board(request):
     lb = (
         User.objects.annotate(
             has_active_ban=Exists(active_user_ban_exists()),
-            score=Sum("solves__task__points"),
-            solved_count=Count("solves"),
+            score=Sum("solves__points_awarded", filter=Q(solves__task__active=True)),
+            solved_count=Count("solves", filter=Q(solves__task__active=True)),
         )
-        .filter(has_active_ban=False)
+        .filter(has_active_ban=False, hidden_from_leaderboard=False)
         .order_by("-score", "-solved_count", "username")[:50]
     )
     leaderboard = [
@@ -614,8 +614,8 @@ def api_admin_users(request):
         return err
     from django.db.models import Sum, Count
     users = User.objects.annotate(
-        score=Sum("solves__task__points"),
-        solved_count=Count("solves"),
+        score=Sum("solves__points_awarded", filter=Q(solves__task__active=True)),
+        solved_count=Count("solves", filter=Q(solves__task__active=True)),
     ).order_by("-score", "-solved_count", "username")
     can_manage_security = request.user.is_superuser
     def active_ban_details(user):
@@ -641,6 +641,7 @@ def api_admin_users(request):
             "avatar": u.avatar.url if u.avatar else None,
             "is_staff": u.is_staff,
             "is_superuser": u.is_superuser,
+            "hidden_from_leaderboard": u.hidden_from_leaderboard,
             "score": u.score or 0,
             "solved_count": u.solved_count or 0,
             "date_joined": str(u.date_joined)[:10],
@@ -822,6 +823,27 @@ class api_admin_toggle_staff(View):
             'is_staff': u.is_staff, 'changed_by': request.user.username,
         })
         return JsonResponse({"ok": True, "is_staff": u.is_staff})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class api_admin_toggle_leaderboard_visibility(View):
+    def post(self, request, user_id):
+        err = _require_staff(request)
+        if err:
+            return err
+        try:
+            u = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return _json_error("Пользователь не найден", 404)
+        u.hidden_from_leaderboard = not u.hidden_from_leaderboard
+        u.save(update_fields=["hidden_from_leaderboard"])
+        log_action(request, "leaderboard_visibility", target_user=u, details={
+            "username": u.username,
+            "display_name": u.get_display_name(),
+            "hidden_from_leaderboard": u.hidden_from_leaderboard,
+            "changed_by": request.user.username,
+        })
+        return JsonResponse({"ok": True, "hidden_from_leaderboard": u.hidden_from_leaderboard})
 
 
 def api_admin_tasks(request):

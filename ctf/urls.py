@@ -41,6 +41,7 @@ urlpatterns = [
     path("api/admin/sync-tasks", api_views.ApiAdminSyncTasks.as_view()),
     path("api/admin/users", api_views.api_admin_users),
     path("api/admin/users/<int:user_id>/toggle-staff", api_views.api_admin_toggle_staff.as_view()),
+    path("api/admin/users/<int:user_id>/toggle-leaderboard", api_views.api_admin_toggle_leaderboard_visibility.as_view()),
     path("api/admin/users/<int:user_id>/ban", api_views.ApiSuperuserBanUser.as_view()),
     path("api/admin/users/<int:user_id>/reset-password", api_views.ApiSuperuserResetPassword.as_view()),
     path("api/admin/security/bans", api_views.api_superuser_bans),

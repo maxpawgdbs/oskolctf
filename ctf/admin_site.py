@@ -159,12 +159,12 @@ class UserAdminForm(forms.ModelForm):
 
 @admin.register(User, site=ctf_admin_site)
 class UserAdmin(DjUserAdmin):
-    list_display = ("username", "display_name", "is_staff", "is_superuser", "get_score_display", "created_at")
-    list_filter = ("is_staff", "is_superuser", "is_active")
+    list_display = ("username", "display_name", "is_staff", "is_superuser", "hidden_from_leaderboard", "get_score_display", "created_at")
+    list_filter = ("is_staff", "is_superuser", "is_active", "hidden_from_leaderboard")
     search_fields = ("username", "display_name")
     readonly_fields = ("created_at", "get_score_display")
     fieldsets = DjUserAdmin.fieldsets + (
-        ("Профиль CTF", {"fields": ("display_name", "avatar", "bio", "created_at")}),
+        ("Профиль CTF", {"fields": ("display_name", "avatar", "bio", "hidden_from_leaderboard", "created_at")}),
     )
     actions = ["make_staff", "remove_staff", "reset_user_solves"]
 
